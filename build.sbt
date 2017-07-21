@@ -23,7 +23,10 @@ lazy val catrix = (project in file("catrix")).
 lazy val example = (project in file ("example")).
   settings(commonSettings: _*).
   settings(
-    name := "catrix-example"
+    name := "catrix-example",
+    libraryDependencies ++= Seq(
+      "ch.qos.logback" % "logback-classic" % "1.1.3"
+    )
   ).dependsOn(catrix)
 
 lazy val root = (project in file(".")).
