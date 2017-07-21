@@ -3,14 +3,13 @@ package top.wagzhi.catrix
 import com.datastax.driver.core.{BoundStatement, Cluster, Session}
 import top.wagzhi.catrix.query.{Column, Filter, Query}
 
-import scala.reflect.ClassTag
+import scala.reflect.{ClassTag, ManifestFactory}
 import scala.reflect.runtime.{universe => ru}
 /**
   * Created by paul on 2017/7/20.
   */
-trait Model[T] {
+trait Table[T] {
   val modelType:Class[T]
-
 
   lazy val (modelName ,modelFields )= {
     val m = ru.runtimeMirror(getClass.getClassLoader)
@@ -22,6 +21,11 @@ trait Model[T] {
     }
     (name,columnNames)
   }
+
+  lazy val (tableName,columnNames) = (
+    toTableOrColumnName(modelName),
+    modelFields.map(toTableOrColumnName)
+  )
 
   def toTableOrColumnName(name:String): String ={
     val n1= name.flatMap{
@@ -61,16 +65,6 @@ trait Model[T] {
 
   }
 
-  def withSession[T](f:Session=>T)(implicit conn: Connector):T ={
-    val session = conn.cluster.connect(conn.keyspace)
-    try{
-      f(session)
-    }catch {
-      case e:Throwable=> {throw e}
-    }finally {
-      session.close()
-    }
-  }
 
 //  implicit class ModelColumn(name:String) {
 //    val cName = toTableOrColumnName(name)
@@ -81,26 +75,26 @@ trait Model[T] {
 
   def filter(filter:Filter) = Query(this.toTableOrColumnName(modelName),Seq(filter))
 
-
-  def save(obj:T)(implicit conn:Connector)= withSession{
+  def getTypeTag[T: ru.TypeTag](obj: T) = ru.typeTag[T]
+  def save(obj:T)(implicit conn:Connector)= conn.withSession{
     session=>
       val stmt = session.prepare(insertQuery)
       val m = ru.runtimeMirror(getClass.getClassLoader)
-      val typeSymbol = m.classSymbol(modelType).asType.toType
-//      val im = m.reflect(obj)
-//      val values = this.modelFields.map{
-//        field=>
-//          val fieldTerm = typeSymbol.decl(ru.TermName(field)).asTerm
-//          val fm = im.reflectField(fieldTerm)
-//          fm.get
-//      }.asInstanceOf[List[Object]]
+      val typeSymbol = m.classSymbol(modelType).toType
+      val im = m.reflect(obj)(ClassTag(modelType))
+      val values = this.modelFields.map{
+        field=>
+          val fieldTerm = typeSymbol.decl(ru.TermName(field)).asTerm
+          val fm = im.reflectField(fieldTerm)
+          fm.get
+      }.asInstanceOf[List[Object]]
 //      val im = m.reflect[BaseModel](obj.asInstanceOf[BaseModel])
 //      val f = typeSymbol.decl(ru.TermName("unapply")).asMethod
 //      val fm = im.reflectMethod(f)
 //
 //      val values = fm.apply().asInstanceOf[Seq[Object]]
 
-      val values = obj.asInstanceOf[BaseModel].unapply().asInstanceOf[Seq[Object]]
+      //val values = obj.asInstanceOf[BaseModel].unapply().asInstanceOf[Seq[Object]]
 
       val bStmt = new BoundStatement(stmt).bind(values:_*)
       session.execute(bStmt)
