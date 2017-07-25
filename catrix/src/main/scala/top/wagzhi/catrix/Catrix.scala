@@ -7,15 +7,15 @@ import com.datastax.driver.core.{Cluster, Session}
   */
 object Catrix{
   def connect(contactPoint:String,keyspace:String) =
-        Connector(contactPoint ,keyspace)
+        Connection(contactPoint ,keyspace)
 }
 
-case class Connector(val contactPoint:String, keyspace:String){
+case class Connection(val contactPoint:String, keyspace:String){
   val cluster = Cluster.builder().addContactPoint(contactPoint).build()
 
   def close = cluster.close()
 
-  def withSession[T](f:Session=>T)(implicit conn: Connector):T ={
+  def withSession[T](f:Session=>T)(implicit conn: Connection):T ={
     val session = conn.cluster.connect(conn.keyspace)
     try{
       f(session)

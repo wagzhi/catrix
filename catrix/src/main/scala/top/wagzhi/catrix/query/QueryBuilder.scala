@@ -2,7 +2,7 @@ package top.wagzhi.catrix.query
 
 import com.datastax.driver.core.{BoundStatement, PagingState, ResultSet, Row}
 import org.slf4j.LoggerFactory
-import top.wagzhi.catrix.{Connector, Table}
+import top.wagzhi.catrix.{Connection, Table}
 
 import scala.reflect.runtime.{universe => ru}
 
@@ -41,6 +41,7 @@ object QueryBuilder {
     def >== (value:Any):Filter= Filter(Column(name),">=",value)
     def < (value:Any):Filter= Filter(Column(name),"<",value)
     def <== (value:Any):Filter= Filter(Column(name),"<=",value)
+    def _contains (value:Any):Filter = Filter(Column(name),"contains",value)
   }
 
   class === extends FilterWord{
@@ -136,7 +137,7 @@ case class Query[T](tableName:String ,
 
 
 
-  def update(values:Map[String,Any])(implicit conn:Connector) = conn.withSession{
+  def update(values:Map[String,Any])(implicit conn:Connection) = conn.withSession{
     session=>
       val query = s"update $tableName set" + values.keySet.map(a=>s" $a = ? ").mkString(",")+this.queryString
       println(query)
@@ -151,17 +152,17 @@ case class Query[T](tableName:String ,
       session.execute(bstmt)
   }
 
-  def delete(implicit conn:Connector)= {
+  def delete(implicit conn:Connection)= {
     execute(this.deleteQuery)
   }
 
-  def select(implicit conn:Connector) = {
+  def select(implicit conn:Connection) = {
     val query = this.selectQuery
     logger.info(query)
     execute(query)
   }
 
-  def execute(query:String)(implicit conn:Connector)=conn.withSession{
+  def execute(query:String)(implicit conn:Connection)=conn.withSession{
       session=>
         val stmt = session.prepare(query)
 

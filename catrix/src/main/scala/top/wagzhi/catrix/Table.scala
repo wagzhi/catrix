@@ -1,5 +1,10 @@
 package top.wagzhi.catrix
 
+import java.nio.ByteBuffer
+import java.sql.Timestamp
+import java.util
+
+import com.datastax.driver.core.DataType.CollectionType
 import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.query._
@@ -31,35 +36,20 @@ trait Table[T] {
     modelFields.map(toTableOrColumnName)
   )
 
-  def convertRow[T](row:Row):T={
-    val m = ru.runtimeMirror(getClass.getClassLoader)
-    val constructorMethod = m.classSymbol(modelType).asType.toType.decl(ru.termNames.CONSTRUCTOR).asMethod
-    val values = row.getColumnDefinitions.asList().asScala.map{
-      df=>
-        val name = df.getName
-        val tpe = df.getType
-        tpe match{
-          case DataType.Name.INT=>{
-            row.getInt(name)
-          }
-          case DataType.Name.TEXT =>{
-            row.getString(name)
-          }
-          case DataType.Name.TIMESTAMP=>{
-            row.getDate(name)
-          }
-          case _=>{
-            throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
-          }
 
-        }
-    }
-    m.reflectClass(m.classSymbol(modelType)).reflectConstructor(constructorMethod).apply(values:_*).asInstanceOf[T]
-  }
   implicit class ResultSetWap(val rs:ResultSet){
-    def pageResult[T] = {
+    def asPage[T] = {
       val prs = pageRows
       PageResult(prs._1.map(_.as[T]),prs._2)
+    }
+
+    def headOption:Option[Row] ={
+      val it =rs.iterator()
+      if(it.hasNext){
+        Some(it.next())
+      }else{
+        None
+      }
     }
 
     def pageRows:(Seq[Row],String)={
@@ -93,7 +83,7 @@ trait Table[T] {
               row.getInt(name)
             }
             case DataType.Name.TEXT =>{
-              row.getString(name)gi
+              row.getString(name)
             }
             case DataType.Name.VARCHAR =>{
               row.getString(name)
@@ -103,6 +93,34 @@ trait Table[T] {
             }
             case DataType.Name.TIMESTAMP=>{
               row.getTimestamp(name)
+            }
+            case DataType.Name.BLOB=>{
+              row.getBytes(name).array()
+            }
+            case DataType.Name.SET =>{
+              tpe.asInstanceOf[CollectionType].getTypeArguments.asScala.headOption.map{
+                setType=>
+                     setType.getName match {
+                      case DataType.Name.INT=>{
+                        row.getSet(name,classOf[Int]).asScala.toSet
+                      }
+                      case DataType.Name.TEXT =>{
+                        row.getSet(name,classOf[String]).asScala.toSet
+                      }
+                      case DataType.Name.VARCHAR =>{
+                        row.getSet(name,classOf[String]).asScala.toSet
+                      }
+                      case DataType.Name.DOUBLE =>{
+                        row.getSet(name,classOf[Double]).asScala.toSet
+                      }
+                      case DataType.Name.TIMESTAMP=>{
+                        row.getSet(name,classOf[java.util.Date]).asScala.toSet
+                      }
+                      case _=>{
+                        throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
+                      }
+                    }
+              }.get
             }
             case _=>{
               throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
@@ -169,7 +187,7 @@ trait Table[T] {
   protected def getTypeTag[T: ru.TypeTag](obj: T) = ru.typeTag[T]
 
 
-  def save(obj:T)(implicit conn:Connector)= conn.withSession{
+  def save(obj:T)(implicit conn:Connection)= conn.withSession{
     session=>
       val stmt = session.prepare(insertQuery)
       val m = ru.runtimeMirror(getClass.getClassLoader)
@@ -179,7 +197,36 @@ trait Table[T] {
         field=>
           val fieldTerm = typeSymbol.decl(ru.TermName(field)).asTerm
           val fm = im.reflectField(fieldTerm)
-          fm.get
+          val v = fm.get
+
+          //TODO add all cassandra types
+          val resultType= fieldTerm.typeSignature.resultType
+          if(resultType.baseClasses.contains(m.classSymbol(classOf[scala.collection.Set[Any]]))){
+            if(resultType.typeArgs.contains(m.typeOf[String])){
+              val set = new java.util.HashSet[String]()
+              v.asInstanceOf[Set[String]].foreach(set.add)
+              set
+            }else{
+              throw new IllegalArgumentException(s"type of collection $resultType is unsupported!")
+            }
+
+          }else if(resultType.baseClasses.contains(m.classSymbol(classOf[scala.collection.Seq[Any]]))){
+            if(resultType.typeArgs.contains(m.typeOf[String])){
+              val set = new java.util.ArrayList[String]()
+              v.asInstanceOf[Seq[String]].foreach(set.add)
+              set
+            }else{
+              throw new IllegalArgumentException(s"type of collection $resultType is unsupported!")
+            }
+
+          }else if(v.isInstanceOf[Array[Byte]]){
+            val bytes= v.asInstanceOf[Array[Byte]]
+            ByteBuffer.wrap(bytes)
+          }else{
+            v
+          }
+
+
       }.asInstanceOf[List[Object]]
       val bStmt = new BoundStatement(stmt).bind(values:_*)
       session.execute(bStmt)

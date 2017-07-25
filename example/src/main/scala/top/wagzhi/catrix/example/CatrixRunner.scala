@@ -57,6 +57,14 @@ object CatrixRunner extends App{
   pages.foreach(pageDao.save)
   pageDao.des.rows.foreach(println)
 
+  println("select set")
+  val att = Attachment("code","url",Set("a","b"),"data".getBytes())
+  Attachment.table.save(att)
+  Attachment.table.getByCode("code").map{
+    at=>
+      println(at)
+  }
+  Attachment.table.getByReferer("a").rows.map(println)
 
   conn.close
 }
