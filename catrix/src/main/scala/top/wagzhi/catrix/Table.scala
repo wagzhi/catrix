@@ -6,12 +6,13 @@ import java.util
 
 import com.datastax.driver.core.DataType.CollectionType
 import com.datastax.driver.core._
+import com.google.common.reflect.TypeToken
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.query._
 
 import scala.reflect.{ClassTag, ManifestFactory}
 import scala.reflect.runtime.{universe => ru}
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
   * Created by paul on 2017/7/20.
@@ -70,14 +71,22 @@ trait Table[T] {
       (rows,ps)
     }
   }
+
+
   implicit class RowWrap(row:Row){
+    val typeMap = Map[DataType.Name,Any](
+      (DataType.cint().getName,TypeToken.of(classOf[Int])),
+      (DataType.text().getName,TypeToken.of(classOf[String]))
+    )
+
     def as[T]() :T={
       val m = ru.runtimeMirror(getClass.getClassLoader)
       val constructorMethod = m.classSymbol(modelType).asType.toType.decl(ru.termNames.CONSTRUCTOR).asMethod
-
+      DataType.Name.values()
       val values = columnNames.map{
         name=>
           val tpe = row.getColumnDefinitions.getType(name)
+
           tpe.getName match{
             case DataType.Name.INT=>{
               row.getInt(name)
@@ -98,29 +107,69 @@ trait Table[T] {
               row.getBytes(name).array()
             }
             case DataType.Name.SET =>{
-              tpe.asInstanceOf[CollectionType].getTypeArguments.asScala.headOption.map{
+              tpe.asInstanceOf[CollectionType].getTypeArguments.toIterable.headOption.map{
                 setType=>
                      setType.getName match {
                       case DataType.Name.INT=>{
-                        row.getSet(name,classOf[Int]).asScala.toSet
+                        row.getSet(name,classOf[Int]).toSet
                       }
                       case DataType.Name.TEXT =>{
-                        row.getSet(name,classOf[String]).asScala.toSet
+                        row.getSet(name,classOf[String]).toSet
                       }
                       case DataType.Name.VARCHAR =>{
-                        row.getSet(name,classOf[String]).asScala.toSet
+                        row.getSet(name,classOf[String]).toSet
                       }
                       case DataType.Name.DOUBLE =>{
-                        row.getSet(name,classOf[Double]).asScala.toSet
+                        row.getSet(name,classOf[Double]).toSet
                       }
                       case DataType.Name.TIMESTAMP=>{
-                        row.getSet(name,classOf[java.util.Date]).asScala.toSet
+                        row.getSet(name,classOf[java.util.Date]).toSet
                       }
                       case _=>{
                         throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
                       }
                     }
               }.get
+            }
+            case DataType.Name.LIST =>{
+              tpe.asInstanceOf[CollectionType].getTypeArguments.toIterable.headOption.map{
+                seqType=>
+                  seqType.getName match {
+                    case DataType.Name.INT=>{
+                      row.getList(name,classOf[Int]).toIndexedSeq
+                    }
+                    case DataType.Name.TEXT =>{
+                      row.getList(name,classOf[String]).toIndexedSeq
+                    }
+                    case DataType.Name.VARCHAR =>{
+                      row.getList(name,classOf[String]).toIndexedSeq
+                    }
+                    case DataType.Name.DOUBLE =>{
+                      row.getList(name,classOf[Double]).toIndexedSeq
+                    }
+                    case DataType.Name.TIMESTAMP=>{
+                      row.getList(name,classOf[java.util.Date]).toIndexedSeq
+                    }
+                    case _=>{
+                      throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
+                    }
+                  }
+              }.get
+            }
+            case DataType.Name.MAP =>{
+              val kv=tpe.asInstanceOf[CollectionType].getTypeArguments.toIndexedSeq
+              val keyType= kv(0)
+              val valueType = kv(1)
+              (keyType.getName,valueType.getName) match {
+                case (DataType.Name.TEXT,DataType.Name.TEXT)=>{
+                    row.getMap(name,classOf[String],classOf[String])
+                }
+                case _=>{
+                  //TODO support all cassandra  type
+                  throw new IllegalArgumentException("Unsupported map type: key="+keyType.getName.toString+", value="+valueType.getName.toString)
+                }
+              }
+
             }
             case _=>{
               throw new IllegalArgumentException("Unsupported type "+tpe.getName.toString)
