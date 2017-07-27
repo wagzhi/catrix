@@ -1,6 +1,7 @@
 package top.wagzhi.catrix.query
 
-import com.datastax.driver.core.{BoundStatement, PagingState, ResultSet, Row}
+
+import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.{Connection, Table}
 
@@ -10,13 +11,6 @@ import scala.reflect.runtime.{universe => ru}
   * Created by paul on 2017/7/20.
   */
 object QueryBuilder {
-//  implicit class RowWrap(val row:Row){
-//    def as[T]:T = {
-//      val m = ru.runtimeMirror(getClass.getClassLoader)
-//      val typeSymbol = m.classSymbol(clazz).toType
-//    }
-//  }
-
 
   implicit class TableColumnName(filedName:String) {
     def name = {
@@ -42,6 +36,9 @@ object QueryBuilder {
     def < (value:Any):Filter= Filter(Column(name),"<",value)
     def <== (value:Any):Filter= Filter(Column(name),"<=",value)
     def _contains (value:Any):Filter = Filter(Column(name),"contains",value)
+    def in (value:Seq[Any]):Filter = {
+      Filter(Column(name),"in",value.toSeq:_*)
+    }
   }
 
   class === extends FilterWord{
@@ -57,7 +54,19 @@ trait FilterWord{
 }
 case class Column(name:String)
 
-case class Filter(column:Column,word:String,value:Any)
+case class Filter(column:Column,word:String,value:Any*){
+  def queryString ={
+    val columnName = column.name
+
+    val valueString = if(word.equals("in")){
+      value.asInstanceOf[Seq[Any]].map(_=>"?").mkString("(",",",")")
+    }else{
+      "?"
+    }
+
+    s"$columnName $word $valueString"
+  }
+}
 
 case class Page(size:Int=20,state:String="")
 
@@ -102,15 +111,8 @@ case class Query[T](tableName:String ,
   }
   private def queryString = {
     val filter = if (filters.nonEmpty){
-      val filterString= filters.map{
-          f=>
-            f.column.name + " "+f.word+" ?"
-        }.mkString(" and ")
-      filters.foldLeft(""){
-        (l,f)=>
-          l+" "+f.word +" ?"
-          l
-      }
+      val filterString= filters.map(_.queryString).mkString(" and ")
+
       s" where $filterString"
     }else{
       ""
@@ -130,9 +132,9 @@ case class Query[T](tableName:String ,
     s"$filter$orderByString$allowFilteringString"
 
   }
-  def queryValues= filters.map{
+  def queryValues= filters.flatMap{
     f=>
-      f.value
+      f.value.toSeq
   }
 
 
@@ -162,15 +164,14 @@ case class Query[T](tableName:String ,
     execute(query)
   }
 
-  def execute(query:String)(implicit conn:Connection)=conn.withSession{
-      session=>
-        val stmt = session.prepare(query)
+  def execute(query:String)(implicit conn:Connection)=conn.withPreparedStatement(query){
+    (stmt,session)=>
+            val bstmt = new BoundStatement(stmt).bind(this.queryValues.asInstanceOf[Seq[Object]]:_*)
+            bstmt.setFetchSize(page.size)
+            if(page.state.length>0){
+              bstmt.setPagingState(PagingState.fromString(page.state))
+            }
 
-        val bstmt = new BoundStatement(stmt).bind(this.queryValues.asInstanceOf[Seq[Object]]:_*)
-        bstmt.setFetchSize(page.size)
-        if(page.state.length>0){
-          bstmt.setPagingState(PagingState.fromString(page.state))
-        }
-        session.execute(bstmt)
+            session.execute(bstmt)
   }
 }

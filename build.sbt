@@ -16,7 +16,8 @@ lazy val catrix = (project in file("catrix")).
       "org.scala-lang" % "scala-reflect" % "2.11.8",
       "com.typesafe.akka" %% "akka-http-core" % "10.0.0" withSources(),
       "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.0" withSources(),
-      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+      "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+      "ch.qos.logback" % "logback-classic" % "1.1.3" % "test"
     )
   )
 
@@ -32,5 +33,5 @@ lazy val example = (project in file ("example")).
 lazy val root = (project in file(".")).
   settings(commonSettings: _*).
   settings(
-    name := "root"
+    name := "catrix-root"
   ).aggregate(catrix)

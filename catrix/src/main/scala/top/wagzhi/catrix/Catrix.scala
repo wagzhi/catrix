@@ -1,6 +1,7 @@
 package top.wagzhi.catrix
 
-import com.datastax.driver.core.{Cluster, Session}
+
+import com.datastax.driver.core.{Cluster, PreparedStatement, Session}
 
 /**
   * Created by paul on 2017/7/20.
@@ -12,17 +13,38 @@ object Catrix{
 
 case class Connection(val contactPoint:String, keyspace:String){
   val cluster = Cluster.builder().addContactPoint(contactPoint).build()
+  lazy val session = cluster.connect(keyspace)
 
-  def close = cluster.close()
+  def close ={
+    session.close()
+    cluster.close()
+  }
+  val stmts = scala.collection.mutable.WeakHashMap[String,PreparedStatement]()
 
-  def withSession[T](f:Session=>T)(implicit conn: Connection):T ={
-    val session = conn.cluster.connect(conn.keyspace)
+  /**
+    * for cache prepared statement
+    * @param query
+    * @param f
+    * @tparam T
+    * @return
+    */
+  def withPreparedStatement[T](query:String)(f:(PreparedStatement,Session)=>T):T={
+    val stmt:PreparedStatement = stmts.synchronized(
+      stmts.get(query).getOrElse{
+        val ps = session.prepare(query)
+        stmts.put(query,ps)
+        ps
+      })
+    f(stmt,session) //PreparedStatement is thread safe
+  }
+
+  def withSession[T](f:Session=>T):T ={
+
     try{
       f(session)
     }catch {
       case e:Throwable=> {throw e}
     }finally {
-      session.close()
     }
   }
 }

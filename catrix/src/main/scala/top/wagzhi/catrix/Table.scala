@@ -18,8 +18,10 @@ import scala.collection.JavaConversions._
   * Created by paul on 2017/7/20.
   */
 trait Table[T] {
-  val logger = LoggerFactory.getLogger(getClass)
+
   val modelType:Class[T]
+  val logger = LoggerFactory.getLogger(getClass)
+
 
   lazy val (modelName ,modelFields )= {
     val m = ru.runtimeMirror(getClass.getClassLoader)
@@ -65,7 +67,7 @@ trait Table[T] {
       val it = rs.iterator()
       val rows = new Array[Row](remaing)
       for(i <- (0 to remaing-1)){
-        rows(i) = it.next()
+          rows(i) = it.next()
       }
 
       (rows,ps)
@@ -236,9 +238,8 @@ trait Table[T] {
   protected def getTypeTag[T: ru.TypeTag](obj: T) = ru.typeTag[T]
 
 
-  def save(obj:T)(implicit conn:Connection)= conn.withSession{
-    session=>
-      val stmt = session.prepare(insertQuery)
+  def save(obj:T)(implicit conn:Connection)= conn.withPreparedStatement(insertQuery){
+    (stmt:PreparedStatement,session: Session)=>
       val m = ru.runtimeMirror(getClass.getClassLoader)
       val typeSymbol = m.classSymbol(modelType).toType
       val im = m.reflect(obj)(ClassTag(modelType))
