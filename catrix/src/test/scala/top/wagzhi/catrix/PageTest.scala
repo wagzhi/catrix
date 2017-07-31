@@ -8,9 +8,13 @@ import org.slf4j.LoggerFactory
 
 /**
   * Created by paul on 2017/7/27.
+  * CREATE KEYSPACE catrix WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;
+  * use catrix;
   * create table web_page (host text,fetch_day int,fetch_time timestamp, url text,content text,tags set<text>, primary key ((host,fetch_day),fetch_time,url)) WITH CLUSTERING ORDER BY (fetch_time desc);
   * create index web_page_url_idx on web_page (url);
   * create index web_page_url_tag on web_page (tags);
+  *
+  * if test failed, please check and make sure all table and index is created successfully!
   */
 case class WebPage(host:String,fetchDay:Int,fetchTime:Date,url:String,content:String,tags:Set[String]){
   def save(implicit conn:Connection) = WebPage.table.save(this)

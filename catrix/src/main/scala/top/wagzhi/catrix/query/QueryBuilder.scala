@@ -1,6 +1,8 @@
 package top.wagzhi.catrix.query
 
 
+import java.util.Date
+
 import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.{Connection, Table}
@@ -53,6 +55,8 @@ trait FilterWord{
 
 }
 case class Column(name:String)
+
+
 
 case class Filter(column:Column,word:String,value:Any*){
   def queryString ={

@@ -3,6 +3,7 @@ package top.wagzhi.catrix
 import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.util
+import java.util.Date
 
 import com.datastax.driver.core.DataType.CollectionType
 import com.datastax.driver.core._
@@ -14,6 +15,7 @@ import scala.reflect.{ClassTag, ManifestFactory}
 import scala.reflect.runtime.{universe => ru}
 import scala.collection.JavaConversions._
 
+
 /**
   * Created by paul on 2017/7/20.
   */
@@ -21,10 +23,9 @@ trait Table[T] {
 
   val modelType:Class[T]
   val logger = LoggerFactory.getLogger(getClass)
-
+  lazy val m = ru.runtimeMirror(getClass.getClassLoader)
 
   lazy val (modelName ,modelFields )= {
-    val m = ru.runtimeMirror(getClass.getClassLoader)
     val constructorMethod = m.classSymbol(modelType).asType.toType.decl(ru.termNames.CONSTRUCTOR).asMethod
     val name = m.classSymbol(modelType).name.toString
     val columnNames = constructorMethod.paramLists.flatMap{
@@ -34,11 +35,44 @@ trait Table[T] {
     (name,columnNames)
   }
 
-  lazy val (tableName,columnNames) = (
-    toTableOrColumnName(modelName),
-    modelFields.map(toTableOrColumnName)
-  )
 
+  lazy val tableName = toTableOrColumnName(modelName)
+
+  lazy val columnNames = modelFields.map(toTableOrColumnName)
+
+//  lazy val columns:Seq[CassandraColumn] = {
+//    val constructorMethod = m.classSymbol(modelType).asType.toType.decl(ru.termNames.CONSTRUCTOR).asMethod
+//    constructorMethod.paramLists.flatMap {
+//      l =>
+//        l.map(_.asTerm)
+//    }.map{
+//      fieldTerm=>
+//        val fieldName = fieldTerm.name.toString
+//        val fieldType = fieldTerm.typeSignature.resultType
+//
+//        val column:CassandraColumn = if(fieldType.baseClasses.contains(classOf[Int])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.cint())
+//        }else if(fieldType.baseClasses.contains(classOf[String])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.text())
+//        }else if(fieldType.baseClasses.contains(classOf[Date])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.timestamp())
+//        }else if(fieldType.baseClasses.contains(classOf[Array[Byte]])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.blob())
+//        }else if(fieldType.baseClasses.contains(classOf[ByteBuffer])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.blob())
+//        }else if(fieldType.baseClasses.contains(classOf[Seq[String]])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.list(DataType.text()))
+//        }else if(fieldType.baseClasses.contains(classOf[Seq[Int]])){
+//          CassandraColumn(fieldName,classOf[Int],toTableOrColumnName(fieldName),DataType.list(DataType.cint()))
+//        }
+//        else{
+//          throw new IllegalArgumentException("Unsupported type "+fieldType.toString+s" in field $fieldName of model $modelName" )
+//        }
+//
+//        column
+//
+//    }
+//  }
 
   implicit class ResultSetWap(val rs:ResultSet){
     def asPage[T] = {
@@ -275,7 +309,6 @@ trait Table[T] {
           }else{
             v
           }
-
 
       }.asInstanceOf[List[Object]]
       val bStmt = new BoundStatement(stmt).bind(values:_*)
