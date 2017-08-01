@@ -1,55 +1,47 @@
 package top.wagzhi.catrix
 import java.util.Date
 
-import com.datastax.driver.core.{DataType, SimpleStatement}
+import com.datastax.driver.core.{DataType, Row, SimpleStatement, TypeCodec}
 import org.scalatest.{Matchers, Outcome}
 import org.slf4j.LoggerFactory
-import top.wagzhi.catrix.query.{CassandraColumn, ColumnValue}
+import top.wagzhi.catrix.query._
 
 /**
   * Created by paul on 2017/7/31.
   */
-case class WebPage2(host:String,fetchDay:Int,url:String,content:String) {
+case class WebPage2(host:String,fetchDay:Int,fetchTime:Date,url:String,content:String) {
 
 }
 
 class PageTable extends CassandraTable[WebPage2]{
-  val host:CassandraColumn = column("host",DataType.text())
-  val fetchTime = column("fetch_time",DataType.timestamp())
-  val fetchDay = column("fetch_day",DataType.cint())
-  val url = column("url",DataType.text())
-  val content = column("content",DataType.text())
+  val host = column[String]("host")
+  val fetchTime = column[Date]("fetch_time")
+  val fetchDay = column[Int]("fetch_day",DataType.cint())
+  val url = column[String]("url",DataType.text())
+  val content = column[String]("content",DataType.text())
 
 
 
-  def hostRep:Unit=>CassandraColumn = {
-    _:Unit=>
-      column("host",DataType.text())
-  }
+  val columns = host ~ fetchTime ~ fetchDay ~ url ~ content
 
-  def columns: Seq[CassandraColumn] = Seq[CassandraColumn](
-    host,fetchDay,fetchTime,url,content
-  )
+
   override val tableName: String = "web_page"
 
-//  def map:Seq[ColumnValue]=>WebPage2 = {
-//    values =>
-//      values.
-//  }
-  val reps :Seq[Unit=>CassandraColumn] = Seq(hostRep)
-
-
-
-  def insert(hostName:String,day:Int,time:Date,turl:String,tcontent:String)(implicit conn:Connection):Unit = {
-    val values = Seq(host(hostName),fetchDay(day),fetchTime(time),url(turl),content(tcontent))
-    super.insert(values).execute
+  def insert(wp:WebPage2)(implicit conn:Connection)={
+    super.insert(parse(wp)).execute
   }
+
+
   def page(hostName:String,day:Int,pagingState:String="")(implicit conn:Connection) = {
     super.select(*).filter(host === hostName).
-      filter(fetchDay === day).page(pagingState).execute
+      filter(fetchDay === day).page(pagingState).execute.pageRows._1.map{
+      r=>
+        val wp =  WebPage2(host(r),fetchDay(r),fetchTime(r),url(r),content(r))
+        parse(wp)
+        wp
+    }
   }
 
-  //override def map[T](values: Map[CassandraColumn, Any]): T = ???
 }
 
 
@@ -58,6 +50,9 @@ class WebPageTest2 extends org.scalatest.fixture.FlatSpec with Matchers {
 
   case class FixtureParam(conn: Connection, table: PageTable)
 
+
+
+
   override protected def withFixture(test: OneArgTest): Outcome = {
     implicit val conn = Catrix.connect("172.16.102.239", "catrix")
     try {
@@ -65,7 +60,8 @@ class WebPageTest2 extends org.scalatest.fixture.FlatSpec with Matchers {
       conn.session.execute(sstmt)
       val now = new Date()
       val table = new PageTable()
-      table.insert("www.19lou.com", 20170727, now,"http://www.19lou.com/abc.html", "abc")
+      val wp=WebPage2("www.19lou.com", 20170727,now,"http://www.19lou.com/abc.html", "中国的")
+      table.insert(wp)
       withFixture(test.toNoArgTest(FixtureParam(conn, table)))
     } finally {
       conn.close
@@ -76,9 +72,8 @@ class WebPageTest2 extends org.scalatest.fixture.FlatSpec with Matchers {
     f=>
       implicit val conn = f.conn
       val table = f.table
-      val row = table.page("www.19lou.com",20170727).one()
-      logger.info(row.toString)
-      table.columnNames.foreach(logger.info)
+      val wp = table.page("www.19lou.com",20170727).head
 
+      println(table.parse(wp))
   }
 }

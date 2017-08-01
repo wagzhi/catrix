@@ -11,14 +11,14 @@ case class CassandraQuery(
                            tableName:String,
                            queryAction: QueryAction.QueryAction,
                            values:Seq[Any] = Seq[Any](),
-                           columns:Seq[CassandraColumn]= Seq[CassandraColumn](),
-                           filters:Seq[QueryFilter] =  Seq[QueryFilter](),
+                           columns:Seq[CassandraColumn[_]]= Seq[CassandraColumn[_]](),
+                           filters:Seq[QueryFilter[_]] =  Seq[QueryFilter[_]](),
                            page:Pagination = Pagination(),
                            orderBy: Option[Order]= None,
                            isAllowFiltering:Boolean=false
                          ) {
   private val logger = LoggerFactory.getLogger(classOf[CassandraQuery])
-  def filter(filter:QueryFilter) = this.copy(filters = filters :+ filter)
+  def filter(filter:QueryFilter[_]) = this.copy(filters = filters :+ filter)
 
   def page(pagingState:String="",pageSize:Int=20) = this.copy(page = Pagination(pagingState,pageSize))
 
