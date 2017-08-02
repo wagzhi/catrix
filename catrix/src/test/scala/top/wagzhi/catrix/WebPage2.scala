@@ -9,11 +9,11 @@ import top.wagzhi.catrix.query._
 /**
   * Created by paul on 2017/7/31.
   */
-case class WebPage2(host:String,fetchDay:Int,fetchTime:Date,url:String,content:String,tags:Set[String]) {
+case class WebPage2(host:String,fetchTime:Date,fetchDay:Int,url:String,content:String,tags:Set[String]) {
 
 }
 
-class PageTable extends CassandraTable[WebPage2]{
+class PageTable extends CassandraTable[WebPage2]("web_page"){
   val host = column[String]("host")
   val fetchTime = column[Date]("fetch_time")
   val fetchDay = column[Int]("fetch_day",DataType.cint())
@@ -21,35 +21,28 @@ class PageTable extends CassandraTable[WebPage2]{
   val content = column[String]("content",DataType.text())
   val tags = column[Set[String]]("tags")
 
+  lazy val columns = host ~ fetchTime ~ fetchDay ~ url ~ content ~ tags
 
-
-  val columns = host ~ fetchTime ~ fetchDay ~ url ~ content ~ tags
-
-
-  override val tableName: String = "web_page"
 
   def insert(wp:WebPage2)(implicit conn:Connection)={
     super.insert(this.columns(wp)).execute
   }
 
   def getByTag(tag:String)(implicit conn:Connection)={
-    super.select(*).filter(tags contains "娱乐").execute.map{
-      r=>
-        WebPage2(host(r),fetchDay(r),fetchTime(r),url(r),content(r),tags(r))
-    }
+    super.select(*).filter(tags contains "娱乐").execute.map
   }
 
   def getByUrl(u:String)(implicit conn:Connection) ={
     select(*).filter(url == u).execute.map{
       r=>
-        WebPage2(host(r),fetchDay(r),fetchTime(r),url(r),content(r),tags(r))
+        WebPage2(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r))
     }
   }
 
   def getByHostAndDay(h:String,d:Int*)(implicit conn:Connection)={
     select(*).filter(host == h).filter(fetchDay in d.toSeq).execute.map{
       r=>
-        WebPage2(host(r),fetchDay(r),fetchTime(r),url(r),content(r),tags(r))
+        WebPage2(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r))
     }
   }
 
@@ -59,7 +52,7 @@ class PageTable extends CassandraTable[WebPage2]{
     super.select(*).filter(host == hostName).
       filter(fetchDay == day).page(pagingState).execute.map{
       r=>
-         WebPage2(host(r),fetchDay(r),fetchTime(r),url(r),content(r),tags(r))
+         WebPage2(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r))
     }
   }
 
@@ -83,8 +76,8 @@ class WebPageTest2 extends org.scalatest.fixture.FlatSpec with Matchers {
       val time = now.getTime
       val table = new PageTable()
       val samples=Seq(
-        WebPage2("www.19lou.com", 20170727,now,"http://www.19lou.com/abc.html", "中国的",Set[String]()),
-        WebPage2("www.19lou.com", 20170727,new Date(time+1),"http://www.19lou.com/abcd.html", "中文",Set[String]("新闻","娱乐","八卦"))
+        WebPage2("www.19lou.com", now,20170727,"http://www.19lou.com/abc.html", "中国的",Set[String]()),
+        WebPage2("www.19lou.com", new Date(time+1),20170727,"http://www.19lou.com/abcd.html", "中文",Set[String]("新闻","娱乐","八卦"))
       )
       samples.foreach(table.insert)
       withFixture(test.toNoArgTest(FixtureParam(conn, table,samples)))

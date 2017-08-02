@@ -3,6 +3,7 @@ package top.wagzhi.catrix.query
 import java.util.Date
 
 import com.datastax.driver.core.{DataType, Row}
+import org.slf4j.LoggerFactory
 
 import scala.language.{existentials, higherKinds, implicitConversions}
 import scala.reflect.ClassTag
@@ -17,6 +18,8 @@ case class CassandraColumn[T](
                            columnType:DataType,
                            fieldName:String = ""
                           )(implicit val typeTag:ru.TypeTag[T]){
+  private val logger = LoggerFactory.getLogger(getClass)
+
   def == (value:T):QueryFilter[T]= QueryFilter(this,"=",value)
   def > (value:T):QueryFilter[T]= QueryFilter(this,">",value)
   def >= (value:T):QueryFilter[T]= QueryFilter(this,">=",value)

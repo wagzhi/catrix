@@ -10,11 +10,11 @@ import scala.reflect.runtime.{universe => ru}
 /**
   * Created by paul on 2017/7/31.
   */
-abstract class CassandraTable[T](implicit val classTag:ClassTag[T]) {
+abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.TypeTag[T], val mClassTag:ClassTag[T]) {
   protected val logger:Logger = LoggerFactory.getLogger(classOf[CassandraTable[_]])
-  type ModelType = T
+  private val m = ru.runtimeMirror(getClass.getClassLoader)
   val columns: Columns
-
+  def * = columns.columns
   /**
     * Get all defined columns field in subclass, and get field name as key.
     * The field name should be same with the field name of model class if you need mapping values to model
@@ -27,7 +27,7 @@ abstract class CassandraTable[T](implicit val classTag:ClassTag[T]) {
         val resultType = memberScope.asTerm.typeSignature.resultType
         resultType.typeSymbol.isClass && resultType.typeSymbol.asClass.equals(m.classSymbol(classOf[CassandraColumn[_]]))
     }.map{ms=>
-      val name = ms.name.toString
+      val name = ms.name.toString.trim //some time name has blank char ,don't know why. so need trim here.
       val im = m.reflect(this)
       val columnFiled = im.reflectField(ms.asTerm)
       val column = columnFiled.get.asInstanceOf[CassandraColumn[_]]
@@ -35,9 +35,7 @@ abstract class CassandraTable[T](implicit val classTag:ClassTag[T]) {
     }.toMap[String,CassandraColumn[_]]
   }
 
-  val tableName: String
 
-  def * = columns.columns
 //  def extractValues[M](t:M,columns:Columns)(implicit mct:ClassTag[M]):Seq[Object] = {
 //    val m = ru.runtimeMirror(this.getClass.getClassLoader)
 //    val cs = m.classSymbol(mct.runtimeClass)
@@ -129,10 +127,48 @@ abstract class CassandraTable[T](implicit val classTag:ClassTag[T]) {
       n1
     }
   }
+  def mapRowDefault(columns:Columns, row:Row):T={
+    val conTerm = mTypeTag.tpe.decl(ru.termNames.CONSTRUCTOR).asMethod
+    val cm = m.classSymbol(mClassTag.runtimeClass)
+    val ctorm = m.reflectClass(cm).reflectConstructor(conTerm)
+    val values = conTerm.paramLists.flatMap{
+      pm=>pm
+    }.map{
+      pf=>
+        val paramName = pf.name.toString
+        columns.columns.filter{
+          c=>
+            val fieldName = c.fieldName
+            fieldName.equals(paramName)
+        }.headOption.map{
+          c=>
+            c(row)
+        }.getOrElse(throw new IllegalArgumentException(s"No column found for field $paramName"))
 
+    }
+    ctorm(values:_*).asInstanceOf[T]
+  }
 
-  implicit class ResultSetWap(val rs:ResultSet){
-    def map[T](f:Row=>T): MappedResultSet[T] ={
+  implicit class RowWrap(val row:Row){
+    def as:T={
+      mapRowDefault(columns,row)
+    }
+  }
+
+  implicit class ResultSetWrap(val rs:ResultSet){
+    def map:MappedResultSet[T]={
+      val pageRows = this.pageRows
+      val rows = pageRows._1.map(row=>mapRowDefault(columns,row))
+      MappedResultSet(rs,rows,pageRows._2)
+    }
+
+    /**
+      * for map to other model object
+      * @param f
+      * @tparam M
+      * @return
+      */
+    def map[M](f:Row=>M): MappedResultSet[M] ={
       val pageRows = this.pageRows
       val rows = pageRows._1.map(f)
       MappedResultSet(rs,rows,pageRows._2)
