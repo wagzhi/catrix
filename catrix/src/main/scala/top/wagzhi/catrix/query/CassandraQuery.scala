@@ -3,6 +3,7 @@ package top.wagzhi.catrix.query
 import com.datastax.driver.core.{BoundStatement, PagingState}
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.Connection
+import top.wagzhi.catrix.exception.ExecuteException
 
 /**
   * Created by paul on 2017/7/31.
@@ -33,30 +34,36 @@ case class CassandraQuery(
 
   def execute(implicit conn:Connection)=conn.withPreparedStatement(queryString) {
     (stmt, session) =>
-        logger.info(s"execute query: $queryString")
+      try{
         val bindValues = queryAction match {
-        case QueryAction.select=>{
-          this.queryValues.asInstanceOf[Seq[Object]]
+          case QueryAction.select=>{
+            this.queryValues.asInstanceOf[Seq[Object]]
+          }
+          case QueryAction.insert=>{
+            this.values.asInstanceOf[Seq[Object]]
+          }
+          case QueryAction.update=>{
+            this.values ++: this.queryValues
+          }
+          case QueryAction.delete=>{
+            this.queryValues
+          }
+          case _=>{
+            throw new IllegalArgumentException("Unsupported query action: "+this.queryAction)
+          }
         }
-        case QueryAction.insert=>{
-          this.values.asInstanceOf[Seq[Object]]
+        val bstmt = new BoundStatement(stmt).bind(bindValues.asInstanceOf[Seq[Object]]: _*)
+        bstmt.setFetchSize(page.pageSize)
+        if (page.pagingState.length > 0) {
+          bstmt.setPagingState(PagingState.fromString(page.pagingState))
         }
-        case QueryAction.update=>{
-          this.values ++: this.queryValues
-        }
-        case QueryAction.delete=>{
-          this.queryValues
-        }
-        case _=>{
-          throw new IllegalArgumentException("Unsupported query action: "+this.queryAction)
+        session.execute(bstmt)
+      }catch{
+        case t:Throwable=>{
+            throw new ExecuteException(s"execute cql failed: $queryString",t)
         }
       }
-      val bstmt = new BoundStatement(stmt).bind(bindValues.asInstanceOf[Seq[Object]]: _*)
-      bstmt.setFetchSize(page.pageSize)
-      if (page.pagingState.length > 0) {
-        bstmt.setPagingState(PagingState.fromString(page.pagingState))
-      }
-      session.execute(bstmt)
+
 
 
   }
