@@ -34,24 +34,24 @@ case class CassandraQuery(
 
   def execute(implicit conn:Connection)=conn.withPreparedStatement(queryString) {
     (stmt, session) =>
-      try{
-        val bindValues = queryAction match {
-          case QueryAction.select=>{
-            this.queryValues.asInstanceOf[Seq[Object]]
-          }
-          case QueryAction.insert=>{
-            this.values.asInstanceOf[Seq[Object]]
-          }
-          case QueryAction.update=>{
-            this.values ++: this.queryValues
-          }
-          case QueryAction.delete=>{
-            this.queryValues
-          }
-          case _=>{
-            throw new IllegalArgumentException("Unsupported query action: "+this.queryAction)
-          }
+      val bindValues = queryAction match {
+        case QueryAction.select=>{
+          this.queryValues.asInstanceOf[Seq[Object]]
         }
+        case QueryAction.insert=>{
+          this.values.asInstanceOf[Seq[Object]]
+        }
+        case QueryAction.update=>{
+          this.values ++: this.queryValues
+        }
+        case QueryAction.delete=>{
+          this.queryValues
+        }
+        case _=>{
+          throw new IllegalArgumentException("Unsupported query action: "+this.queryAction)
+        }
+      }
+      try{
         val bstmt = new BoundStatement(stmt).bind(bindValues.asInstanceOf[Seq[Object]]: _*)
         bstmt.setFetchSize(page.pageSize)
         if (page.pagingState.length > 0) {
@@ -60,7 +60,8 @@ case class CassandraQuery(
         session.execute(bstmt)
       }catch{
         case t:Throwable=>{
-            throw new ExecuteException(s"execute cql failed: $queryString",t)
+            val valueList = bindValues.map(_.toString).mkString(", ")
+            throw new ExecuteException(s"execute cql failed: $queryString,\n with values: ($valueList)",t)
         }
       }
 

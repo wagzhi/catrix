@@ -65,7 +65,11 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
   def insert(columnValues:Seq[ColumnValue[_]]):CassandraQuery = {
     val cvs = columnValues.filter{
       cv=>
-        if(cv.column.columnType.getName.equals(DataType.Name.SET)){
+        val columnTypeName = cv.column.columnType.getName
+        if(columnTypeName.equals(DataType.Name.SET) ||
+          columnTypeName.equals(DataType.Name.MAP) ||
+          columnTypeName.equals(DataType.Name.LIST)
+        ){
           cv.value.asInstanceOf[Traversable[_]].nonEmpty //filter empty value
         }else{
           true
@@ -74,10 +78,16 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
     val columns = cvs.map(_.column)
     val values = cvs.map{
       cv=>
-        if(cv.column.columnType.getName.equals(DataType.Name.SET)){
-
+        val columnTypeName = cv.column.columnType.getName
+        if(columnTypeName.equals(DataType.Name.SET)){
           cv.value.asInstanceOf[Set[Object]].asJava
-        }else{
+        }else if(columnTypeName.equals(DataType.Name.LIST)){
+          cv.value.asInstanceOf[Seq[Object]].asJava
+        }
+        else if(columnTypeName.equals(DataType.Name.MAP)){
+          cv.value.asInstanceOf[Map[Object,Object]].asJava
+        }
+        else{
           cv.value
         }
     }
@@ -93,21 +103,24 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
     CassandraQuery(tableName, QueryAction.update, columns = columns, values = values)
 
 
-  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T]): CassandraColumn[T] ={
-    val runtimeClass = typeTag.tpe
-    if(runtimeClass.equals(ru.typeOf[Int])){
-      CassandraColumn[Int](columnName,DataType.cint()).asInstanceOf[CassandraColumn[T]]
-    }else if (runtimeClass.equals(ru.typeOf[String])){
-      CassandraColumn[String](columnName,DataType.text()).asInstanceOf[CassandraColumn[T]]
-    }else if(runtimeClass.equals(ru.typeOf[Date])){
-      CassandraColumn[Date](columnName,DataType.timestamp()).asInstanceOf[CassandraColumn[T]]
-    }else if (runtimeClass.equals(ru.typeOf[Set[String]])){ //TODO
-      CassandraColumn[T](columnName,DataType.set(DataType.text()))
-    }
-    else {
-      throw new IllegalArgumentException("Unsupported column type "+typeTag.toString())
-    }
-  }
+  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T]): CassandraColumn[T] = CassandraColumn[T](columnName)
+//  {
+//
+//
+//    val runtimeClass = typeTag.tpe
+//    if(runtimeClass.equals(ru.typeOf[Int])){
+//      CassandraColumn[Int](columnName,DataType.cint()).asInstanceOf[CassandraColumn[T]]
+//    }else if (runtimeClass.equals(ru.typeOf[String])){
+//      CassandraColumn[String](columnName,DataType.text()).asInstanceOf[CassandraColumn[T]]
+//    }else if(runtimeClass.equals(ru.typeOf[Date])){
+//      CassandraColumn[Date](columnName,DataType.timestamp()).asInstanceOf[CassandraColumn[T]]
+//    }else if (runtimeClass.baseClasses.contains(m.classSymbol(classOf[Set[_]]))){ //TODO
+//      CassandraColumn[T](columnName,DataType.set(DataType.text()))
+//    }
+//    else {
+//      throw new IllegalArgumentException("Unsupported column type "+typeTag.toString())
+//    }
+//  }
 
   def column[T](columnName:String,dataType: DataType)(implicit typeTag:ru.TypeTag[T]) = CassandraColumn[T](columnName,dataType)
 

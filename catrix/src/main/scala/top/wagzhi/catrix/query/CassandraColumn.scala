@@ -29,14 +29,27 @@ case class CassandraColumn[T](
   def in (values:Seq[T]):QueryFilter[T] = {
     QueryFilter(this,"in",values:_*)
   }
+
+  /**
+    * get column value from cassandra row
+    * @param row
+    * @return
+    */
   def apply(row:Row):T = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
-
-    if(this.columnType.getName.equals(DataType.Name.SET)){
-      val tpe = typeTag.tpe.typeArgs.head
-      val clazz = m.runtimeClass(tpe)
+    val columnTypeName = columnType.getName
+    if(columnTypeName.equals(DataType.Name.SET)){
+      val clazz = typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
       row.getSet(this.columnName,clazz).toSet[Any].asInstanceOf[T]
-    }else{
+    }else if(columnTypeName.equals(DataType.Name.MAP)){
+      val classSeq = typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes)
+      val (classKey,classValue) = (classSeq(0),classSeq(1))
+      row.getMap(this.columnName,classKey,classValue).toMap[Any,Any].asInstanceOf[T]
+    }else if(columnTypeName.equals(DataType.Name.LIST)){
+      val clazz = typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
+      row.getList(this.columnName,clazz).toIndexedSeq.asInstanceOf[T]
+    }
+    else{
       val clazz = m.runtimeClass(typeTag.tpe)
       row.get(columnName,clazz).asInstanceOf[T]
     }
@@ -56,6 +69,64 @@ case class CassandraColumn[T](
     }.getOrElse(throw new IllegalArgumentException("not fieldName found!"))
   }
 }
+
+object CassandraColumn{
+  lazy val m = ru.runtimeMirror(getClass.getClassLoader)
+  lazy val setClassSymbol = m.classSymbol(classOf[Set[_]])
+  lazy val seqClassSymbol = m.classSymbol(classOf[Seq[_]])
+  lazy val mapClassSymbol = m.classSymbol(classOf[Map[_,_]])
+  private val typeMap = Map(
+    ru.typeOf[Int]->DataType.cint(),
+    ru.typeOf[String]->DataType.text(),
+    ru.typeOf[Date]->DataType.timestamp(),
+    ru.typeOf[Long]->DataType.bigint(),
+    ru.typeOf[Float]->DataType.cfloat(),
+    ru.typeOf[Double]->DataType.cdouble(),
+    ru.typeOf[Boolean]->DataType.cboolean(),
+    ru.typeOf[Array[Byte]]->DataType.blob(),
+    ru.typeOf[java.nio.ByteBuffer]->DataType.blob(),
+    ru.typeOf[Short] -> DataType.smallint()
+  )
+  def getBaseDataType(tpe:ru.Type):DataType =
+    typeMap.get(tpe).getOrElse(throw new IllegalArgumentException("Unsupported data type "+tpe))
+
+  def mapPrimitiveTypes(clazz:Class[_]):Class[_]={
+    val name = clazz.getName
+    name match{
+      case "int"=> classOf[java.lang.Integer]
+      case "long" => classOf[java.lang.Long]
+      case "byte" => classOf[java.lang.Byte]
+      case "boolean" => classOf[java.lang.Boolean]
+      case "short" => classOf[java.lang.Short]
+      case "float" => classOf[java.lang.Float]
+      case "double" => classOf[java.lang.Double]
+      case "char" => classOf[java.lang.Character]
+      case _=> clazz
+    }
+  }
+
+
+
+  def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T]):CassandraColumn[T]={
+    val tpe = typeTag.tpe
+    if(tpe.baseClasses.contains(setClassSymbol)){
+      val dataType = getBaseDataType(tpe.typeArgs.head)
+      CassandraColumn(columnName,DataType.set(dataType))
+    }else if(tpe.baseClasses.contains(seqClassSymbol)){
+      val dataType = getBaseDataType(tpe.typeArgs.head)
+      CassandraColumn(columnName,DataType.list(dataType))
+    }else if(tpe.baseClasses.contains(mapClassSymbol)){
+      val types = tpe.typeArgs.map(getBaseDataType)
+      val (dataTypeKey,dataTypeValue) = (types(0),types(1))
+      CassandraColumn(columnName,DataType.map(dataTypeKey,dataTypeValue))
+    }else{
+      CassandraColumn(columnName,getBaseDataType(tpe))
+    }
+
+  }
+}
+
+
 case class ColumnValue[T](column:CassandraColumn[T],value:Any){
   def getValue[T] = value.asInstanceOf[T]
 }
@@ -75,7 +146,6 @@ case class Columns(columns:Seq[CassandraColumn[_]]){
             scope.asTerm.name.toString.equals(column.fieldName)
         }.headOption.map{
           scope=>
-
             val value = im.reflectField(scope.asTerm).get
             ColumnValue(column,value)
         }.getOrElse(throw new IllegalArgumentException("No field '"+column.fieldName+" found in the object: "+m.toString()))

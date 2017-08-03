@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory
   * create index web_page_url_idx on web_page (url);
   * create index web_page_url_tag on web_page (tags);
   *
+  *
   * if test failed, please check and make sure all table and index is created successfully!
   */
 case class WebPage(host:String,fetchDay:Int,fetchTime:Date,url:String,content:String,tags:Set[String]){
