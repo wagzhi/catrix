@@ -39,23 +39,23 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
   }
 
   def getByTag(tag:String)(implicit conn:Connection)={
-    super.select(*).filter(tags contains "娱乐").execute.map
+    super.select(*).filter(tags contains "娱乐").execute.mapResult
   }
 
   def getByUrl(u:String)(implicit conn:Connection) ={
-    select(*).filter(url == u).execute.map{
+    select(*).filter(url == u).execute.mapResult{
       r=>
         TestWebPage(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r),links(r),replyId(r))
     }
   }
   def getTitle(u:String)(implicit conn:Connection) ={
-    select(title).filter(url == u).execute.map{
+    select(title).filter(url == u).execute.mapResult{
       r=> title(r)
     }.rows
   }
 
   def getByHostAndDay(h:String,d:Int*)(implicit conn:Connection)={
-    select(*).filter(host == h).filter(fetchDay in d.toSeq).execute.map{
+    select(*).filter(host == h).filter(fetchDay in d.toSeq).execute.mapResult{
       r=>
         TestWebPage(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r),links(r),replyId(r))
     }
@@ -65,7 +65,7 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
 
   def page(hostName:String,day:Int,pagingState:String="")(implicit conn:Connection) = {
     super.select(*).filter(host == hostName).
-      filter(fetchDay == day).page(pagingState).execute.map{
+      filter(fetchDay == day).page(pagingState).execute.mapResult{
       r=>
         TestWebPage(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r),links(r),replyId(r))
     }

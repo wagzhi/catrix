@@ -178,7 +178,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
   }
 
   implicit class ResultSetWrap(val rs:ResultSet){
-    def map:MappedResultSet[T]={
+    def mapResult:MappedResultSet[T]={
       val pageRows = this.pageRows
       val rows = pageRows._1.map(row=>mapRowDefault(columns,row))
       MappedResultSet(rs,rows,pageRows._2)
@@ -190,7 +190,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
       * @tparam M
       * @return
       */
-    def map[M](f:Row=>M): MappedResultSet[M] ={
+    def mapResult[M](f:Row=>M): MappedResultSet[M] ={
       val pageRows = this.pageRows
       val rows = pageRows._1.map(f)
       MappedResultSet(rs,rows,pageRows._2)
