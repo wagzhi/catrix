@@ -14,6 +14,7 @@ import top.wagzhi.catrix.query._
   * create index t_web_page_url_idx on t_web_page (url);
   * create index t_web_page_url_tag on t_web_page (tags);
   * alter table t_web_page add reply_id list<bigint>;
+  * alter table t_web_page add title text;
   */
 case class TestWebPage(host:String,fetchTime:Date,fetchDay:Int,url:String,content:Option[String],tags:Set[String],links:Map[String,Int],replyId:Seq[Long]) {
 
@@ -25,6 +26,7 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
   val fetchDay = column[Int]("fetch_day")
   val url = column[String]("url")
   val content = column[Option[String]]("content")
+  val title = column[String]("title").withDefault("")
   val tags = column[Set[String]]("tags")
   val links = column[Map[String,Int]]("links")
   val replyId= column[Seq[Long]]("reply_id")
@@ -45,6 +47,11 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
       r=>
         TestWebPage(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r),links(r),replyId(r))
     }
+  }
+  def getTitle(u:String)(implicit conn:Connection) ={
+    select(title).filter(url == u).execute.map{
+      r=> title(r)
+    }.rows
   }
 
   def getByHostAndDay(h:String,d:Int*)(implicit conn:Connection)={
@@ -120,6 +127,11 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
       val urls = samples.map(_.url)
       val pages3 = table.getByHostAndDay(host,day,day+1)
       pages3.rows should have length 2
+
+      //get with default value
+      val titles = table.getTitle(samples(0).url)
+      titles should have length 1
+      titles(0) shouldBe ""
 
   }
 

@@ -16,7 +16,8 @@ import scala.reflect.runtime.{universe => ru}
 case class CassandraColumn[T](
                            columnName:String,
                            columnType:DataType,
-                           fieldName:String = ""
+                           fieldName:String = "",
+                             default:Option[T] = None
                           )(implicit val typeTag:ru.TypeTag[T]){
   private val logger = LoggerFactory.getLogger(getClass)
 
@@ -28,6 +29,10 @@ case class CassandraColumn[T](
   def contains (value:Any):QueryFilter[T] = QueryFilter(this,"contains",value)
   def in (values:Seq[T]):QueryFilter[T] = {
     QueryFilter(this,"in",values:_*)
+  }
+
+  def withDefault(defaultValue:T): CassandraColumn[T] ={
+    this.copy(default = Some(defaultValue))
   }
 
   /**
@@ -61,7 +66,13 @@ case class CassandraColumn[T](
 
       }else{
         val clazz = m.runtimeClass(typeTag.tpe)
-        row.get(columnName,clazz).asInstanceOf[T]
+        val value = row.get(columnName,clazz)
+        if(value == null){
+          this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
+        }else{
+          row.get(columnName,clazz).asInstanceOf[T]
+        }
+
       }
     }
   }

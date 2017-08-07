@@ -14,7 +14,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
   protected val logger:Logger = LoggerFactory.getLogger(classOf[CassandraTable[_]])
   private val m = ru.runtimeMirror(getClass.getClassLoader)
   val columns: Columns
-  def * = columns.columns
+  def * = columns
   /**
     * Get all defined columns field in subclass, and get field name as key.
     * The field name should be same with the field name of model class if you need mapping values to model
@@ -58,8 +58,13 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
 //    extractValues(t,this.columns)
 //  }
 
-  def select(columns: Seq[CassandraColumn[_]]): CassandraQuery =
+  def select(columns: CassandraColumn[_]*): CassandraQuery =
     CassandraQuery(tableName, QueryAction.select, columns = columns)
+
+  def select(columns:Columns) :CassandraQuery =
+    CassandraQuery(tableName, QueryAction.select, columns = columns.columns)
+
+
 
 
   def insert(columnValues:Seq[ColumnValue[_]]):CassandraQuery = {
