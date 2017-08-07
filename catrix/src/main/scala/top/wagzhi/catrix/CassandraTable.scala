@@ -71,7 +71,10 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
           columnTypeName.equals(DataType.Name.LIST)
         ){
           cv.value.asInstanceOf[Traversable[_]].nonEmpty //filter empty value
-        }else{
+        }else if(cv.column.typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+          cv.value.asInstanceOf[Option[_]].nonEmpty
+        }
+        else{
           true
         }
     }
@@ -83,9 +86,10 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
           cv.value.asInstanceOf[Set[Object]].asJava
         }else if(columnTypeName.equals(DataType.Name.LIST)){
           cv.value.asInstanceOf[Seq[Object]].asJava
-        }
-        else if(columnTypeName.equals(DataType.Name.MAP)){
+        }else if(columnTypeName.equals(DataType.Name.MAP)){
           cv.value.asInstanceOf[Map[Object,Object]].asJava
+        }else if(cv.column.typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+          cv.value.asInstanceOf[Option[Object]].get
         }
         else{
           cv.value
@@ -125,21 +129,21 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
   def column[T](columnName:String,dataType: DataType)(implicit typeTag:ru.TypeTag[T]) = CassandraColumn[T](columnName,dataType)
 
 
-  private def toTableOrColumnName(name: String): String = {
-    val n1 = name.flatMap {
-      c =>
-        if (c.isUpper) {
-          "_" + c.toLower
-        } else {
-          c.toString
-        }
-    }
-    if (n1.startsWith("_")) {
-      n1.substring(1)
-    } else {
-      n1
-    }
-  }
+//  private def toTableOrColumnName(name: String): String = {
+//    val n1 = name.flatMap {
+//      c =>
+//        if (c.isUpper) {
+//          "_" + c.toLower
+//        } else {
+//          c.toString
+//        }
+//    }
+//    if (n1.startsWith("_")) {
+//      n1.substring(1)
+//    } else {
+//      n1
+//    }
+//  }
   def mapRowDefault(columns:Columns, row:Row):T={
     val conTerm = mTypeTag.tpe.decl(ru.termNames.CONSTRUCTOR).asMethod
     val cm = m.classSymbol(mClassTag.runtimeClass)
@@ -203,10 +207,10 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
         ""
       }
 
-      val remaing = rs.getAvailableWithoutFetching
+      val remain = rs.getAvailableWithoutFetching
       val it = rs.iterator()
-      val rows = new Array[Row](remaing)
-      for(i <- (0 to remaing-1)){
+      val rows = new Array[Row](remain)
+      for(i <- (0 to remain-1)){
         rows(i) = it.next()
       }
 

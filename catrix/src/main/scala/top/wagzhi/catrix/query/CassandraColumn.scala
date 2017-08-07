@@ -50,10 +50,20 @@ case class CassandraColumn[T](
       row.getList(this.columnName,clazz).toIndexedSeq.asInstanceOf[T]
     }
     else{
-      val clazz = m.runtimeClass(typeTag.tpe)
-      row.get(columnName,clazz).asInstanceOf[T]
-    }
+      if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+        val clazz = typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
+        val value = row.get(columnName,clazz)
+        if(value == null){
+          None.asInstanceOf[T]
+        }else{
+          Some(value).asInstanceOf[T]
+        }
 
+      }else{
+        val clazz = m.runtimeClass(typeTag.tpe)
+        row.get(columnName,clazz).asInstanceOf[T]
+      }
+    }
   }
 
   def ~[T] (column: CassandraColumn[T])(implicit columnList:Map[String,CassandraColumn[_]]):Columns = {
@@ -75,6 +85,7 @@ object CassandraColumn{
   lazy val setClassSymbol = m.classSymbol(classOf[Set[_]])
   lazy val seqClassSymbol = m.classSymbol(classOf[Seq[_]])
   lazy val mapClassSymbol = m.classSymbol(classOf[Map[_,_]])
+  lazy val optionClassSymbol = m.classSymbol(classOf[Option[_]])
   private val typeMap = Map(
     ru.typeOf[Int]->DataType.cint(),
     ru.typeOf[String]->DataType.text(),
@@ -119,7 +130,11 @@ object CassandraColumn{
       val types = tpe.typeArgs.map(getBaseDataType)
       val (dataTypeKey,dataTypeValue) = (types(0),types(1))
       CassandraColumn(columnName,DataType.map(dataTypeKey,dataTypeValue))
-    }else{
+    }else if(tpe.baseClasses.contains(optionClassSymbol)){
+      val dataType = getBaseDataType(tpe.typeArgs.head)
+      CassandraColumn(columnName,dataType)
+    }
+    else{
       CassandraColumn(columnName,getBaseDataType(tpe))
     }
 
@@ -155,13 +170,11 @@ case class Columns(columns:Seq[CassandraColumn[_]]){
 case class QueryFilter[T](column: CassandraColumn[T],word:String,value:Any*){
   def queryString ={
     val columnName = column.columnName
-
     val valueString = if(word.equals("in")){
       value.asInstanceOf[Seq[Any]].map(_=>"?").mkString("(",",",")")
     }else{
       "?"
     }
-
     s"$columnName $word $valueString"
   }
 }

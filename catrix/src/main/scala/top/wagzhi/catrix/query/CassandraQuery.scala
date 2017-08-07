@@ -19,13 +19,14 @@ case class CassandraQuery(
                            isAllowFiltering:Boolean=false
                          ) {
   private val logger = LoggerFactory.getLogger(classOf[CassandraQuery])
+
   def filter(filter:QueryFilter[_]) = this.copy(filters = filters :+ filter)
 
   def page(pagingState:String="",pageSize:Int=20) = this.copy(page = Pagination(pagingState,pageSize))
 
   def orderBy(order:Order):CassandraQuery = this.copy(orderBy = Some(order))
 
-  def allowFiltering(allowFilttering:Boolean) = this.copy(isAllowFiltering=allowFilttering)
+  def allowFiltering(allowFiltering:Boolean) = this.copy(isAllowFiltering=allowFiltering)
 
   def queryValues= filters.flatMap{
     f=>
@@ -61,12 +62,9 @@ case class CassandraQuery(
       }catch{
         case t:Throwable=>{
             val valueList = bindValues.map(_.toString).mkString(", ")
-            throw new ExecuteException(s"execute cql failed: $queryString,\n with values: ($valueList)",t)
+            throw new ExecuteException(s"Execute cql failed: $queryString,\n with values: ($valueList)",t)
         }
       }
-
-
-
   }
 
   def queryString:String = {

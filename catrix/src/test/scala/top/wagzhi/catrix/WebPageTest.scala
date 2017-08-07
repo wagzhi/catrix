@@ -15,7 +15,7 @@ import top.wagzhi.catrix.query._
   * create index t_web_page_url_tag on t_web_page (tags);
   * alter table t_web_page add reply_id list<bigint>;
   */
-case class TestWebPage(host:String,fetchTime:Date,fetchDay:Int,url:String,content:String,tags:Set[String],links:Map[String,Int],replyId:Seq[Long]) {
+case class TestWebPage(host:String,fetchTime:Date,fetchDay:Int,url:String,content:Option[String],tags:Set[String],links:Map[String,Int],replyId:Seq[Long]) {
 
 }
 
@@ -24,7 +24,7 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
   val fetchTime = column[Date]("fetch_time")
   val fetchDay = column[Int]("fetch_day")
   val url = column[String]("url")
-  val content = column[String]("content")
+  val content = column[Option[String]]("content")
   val tags = column[Set[String]]("tags")
   val links = column[Map[String,Int]]("links")
   val replyId= column[Seq[Long]]("reply_id")
@@ -72,9 +72,6 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
 
   case class FixtureParam(conn: Connection, table: TestWebPageTable,samples:Seq[TestWebPage])
 
-
-
-
   override protected def withFixture(test: OneArgTest): Outcome = {
     implicit val conn = Catrix.connect("172.16.102.239", "catrix")
     try {
@@ -84,12 +81,12 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
       val time = now.getTime
       val table = new TestWebPageTable()
       val samples=Seq(
-        TestWebPage("www.19lou.com", now,20170727,"http://www.19lou.com/abc.html", "中国的",Set[String](),Map[String,Int](),Seq[Long]()),
+        TestWebPage("www.19lou.com", now,20170727,"http://www.19lou.com/abc.html", None,Set[String](),Map[String,Int](),Seq[Long]()),
         TestWebPage("www.19lou.com",
           new Date(time+1),
           20170727,
           "http://www.19lou.com/abcd.html",
-          "中文",
+          Some("中文"),
           Set[String]("新闻","娱乐","八卦"),
           Map[String,Int]("http://www.domain2.com/1.html"->1,"http://www.domain3.com/3.html"->3),
           Seq[Long](1000l,2000l)
