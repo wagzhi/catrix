@@ -61,8 +61,6 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
     }
   }
 
-
-
   def page(hostName:String,day:Int,pagingState:String="")(implicit conn:Connection) = {
     super.select(*).filter(host == hostName).
       filter(fetchDay == day).page(pagingState).execute.mapResult{
@@ -70,9 +68,7 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
         TestWebPage(host(r),fetchTime(r),fetchDay(r),url(r),content(r),tags(r),links(r),replyId(r))
     }
   }
-
 }
-
 
 class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
   val logger = LoggerFactory.getLogger(getClass)

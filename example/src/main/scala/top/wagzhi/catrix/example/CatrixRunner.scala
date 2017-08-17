@@ -58,7 +58,8 @@ object CatrixRunner extends App{
   pageDao.des.rows.foreach(println)
 
   println("select set")
-  val att = Attachment("code","url",Set("a","b"),"data".getBytes())
+  val al = Array[Byte](1,3,3,4)
+  val att = Attachment("code","url",Set("a","b"),al)
   Attachment.table.save(att)
   Attachment.table.getByCode("code").map{
     at=>

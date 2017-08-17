@@ -1,5 +1,6 @@
 package top.wagzhi.catrix.query
 
+import java.nio.ByteBuffer
 import java.util.Date
 
 import com.datastax.driver.core.{DataType, Row}
@@ -66,13 +67,27 @@ case class CassandraColumn[T](
 
       }else{
         val clazz = m.runtimeClass(typeTag.tpe)
-        val value = row.get(columnName,clazz)
-        if(value == null){
-          this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
-        }else{
-          row.get(columnName,clazz).asInstanceOf[T]
-        }
+        if(columnType.getName.equals(DataType.Name.BLOB)){
+          val bfClass = classOf[ByteBuffer]
+          val value = row.get(columnName,bfClass)
+          if(value == null){
+            this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
+          }else{
+            if(clazz.equals(bfClass)){
+              row.get(columnName,bfClass).asInstanceOf[T]
+            }else{
+              row.get(columnName,bfClass).asInstanceOf[ByteBuffer].array().asInstanceOf[T]
+            }
 
+          }
+        }else{
+          val value = row.get(columnName,clazz)
+          if(value == null){
+            this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
+          }else{
+            row.get(columnName,clazz).asInstanceOf[T]
+          }
+        }
       }
     }
   }
@@ -173,7 +188,12 @@ case class Columns(columns:Seq[CassandraColumn[_]]){
         }.headOption.map{
           scope=>
             val value = im.reflectField(scope.asTerm).get
-            ColumnValue(column,value)
+            val v = if(value.isInstanceOf[Array[Byte]]){
+              ByteBuffer.wrap(value.asInstanceOf[Array[Byte]])
+            }else{
+              value
+            }
+            ColumnValue(column,v)
         }.getOrElse(throw new IllegalArgumentException("No field '"+column.fieldName+" found in the object: "+m.toString()))
     }
   }
