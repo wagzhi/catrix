@@ -1,6 +1,7 @@
 package top.wagzhi.catrix.query
 
 import java.nio.ByteBuffer
+import java.util
 import java.util.Date
 
 import com.datastax.driver.core.{DataType, Row}
@@ -19,7 +20,7 @@ case class CassandraColumn[T](
                            columnType:DataType,
                            fieldName:String = "",
                              default:Option[T] = None
-                          )(implicit val typeTag:ru.TypeTag[T]){
+                          )(implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T]){
   private val logger = LoggerFactory.getLogger(getClass)
 
   def == (value:T):QueryFilter[T]= QueryFilter(this,"=",value)
@@ -56,37 +57,54 @@ case class CassandraColumn[T](
       row.getList(this.columnName,clazz).toIndexedSeq.asInstanceOf[T]
     }
     else{
-      if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
-        val clazz = typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
-        val value = row.get(columnName,clazz)
-        if(value == null){
-          None.asInstanceOf[T]
+      val clazz = if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+        typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
+      }else if(typeTag.tpe.baseClasses.contains(CassandraColumn.enumerationValueClassSymbol)){
+        m.runtimeClass(ru.typeOf[Int])
+      }else{
+        m.runtimeClass(typeTag.tpe)
+      }
+      //get raw value
+      val rawValue = if(columnType.getName.equals(DataType.Name.BLOB)){
+        val bfClass = classOf[ByteBuffer]
+        if(clazz.equals(bfClass)){
+            row.get(columnName,bfClass)
         }else{
-          Some(value).asInstanceOf[T]
+            row.get(columnName,bfClass).asInstanceOf[ByteBuffer].array()
         }
 
       }else{
-        val clazz = m.runtimeClass(typeTag.tpe)
-        if(columnType.getName.equals(DataType.Name.BLOB)){
-          val bfClass = classOf[ByteBuffer]
-          val value = row.get(columnName,bfClass)
-          if(value == null){
-            this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
-          }else{
-            if(clazz.equals(bfClass)){
-              row.get(columnName,bfClass).asInstanceOf[T]
-            }else{
-              row.get(columnName,bfClass).asInstanceOf[ByteBuffer].array().asInstanceOf[T]
-            }
+        row.get(columnName,clazz)
+      }
 
-          }
+      if(rawValue == null){
+        if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+          None.asInstanceOf[T]
         }else{
-          val value = row.get(columnName,clazz)
-          if(value == null){
-            this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
-          }else{
-            row.get(columnName,clazz).asInstanceOf[T]
+          this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
+        }
+      }else{
+        if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+          Some(rawValue).asInstanceOf[T]
+        }else if(typeTag.tpe.baseClasses.contains(CassandraColumn.enumerationValueClassSymbol)){
+          lazy val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
+          val dv = this.default.getOrElse{
+            throw new IllegalStateException(s"column ${columnName} is enumeration, must have a default value")
           }
+          val im = universeMirror.reflect(dv)(classTag)
+          val eo = typeTag.tpe.decls.filter{
+            scope=>
+              scope.asTerm.fullName.contains("outerEnum")
+          }.headOption.map{
+            scope=>
+              //Get enumeration Object
+              val enumObject = im.reflectField(scope.asTerm).get
+              enumObject.asInstanceOf[Enumeration].apply(rawValue.asInstanceOf[Int])
+          }.get
+          eo.asInstanceOf[T]
+
+        }else{
+          rawValue.asInstanceOf[T]
         }
       }
     }
@@ -112,6 +130,7 @@ object CassandraColumn{
   lazy val seqClassSymbol = m.classSymbol(classOf[Seq[_]])
   lazy val mapClassSymbol = m.classSymbol(classOf[Map[_,_]])
   lazy val optionClassSymbol = m.classSymbol(classOf[Option[_]])
+  lazy val enumerationValueClassSymbol =  m.classSymbol(classOf[Enumeration#Value])
   private val typeMap = Map(
     ru.typeOf[Int]->DataType.cint(),
     ru.typeOf[String]->DataType.text(),
@@ -144,7 +163,7 @@ object CassandraColumn{
 
 
 
-  def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T]):CassandraColumn[T]={
+  def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):CassandraColumn[T]={
     val tpe = typeTag.tpe
     if(tpe.baseClasses.contains(setClassSymbol)){
       val dataType = getBaseDataType(tpe.typeArgs.head)
@@ -159,6 +178,8 @@ object CassandraColumn{
     }else if(tpe.baseClasses.contains(optionClassSymbol)){
       val dataType = getBaseDataType(tpe.typeArgs.head)
       CassandraColumn(columnName,dataType)
+    }else if(tpe.baseClasses.contains(enumerationValueClassSymbol)){
+      CassandraColumn(columnName,DataType.cint())
     }
     else{
       CassandraColumn(columnName,getBaseDataType(tpe))
@@ -190,6 +211,8 @@ case class Columns(columns:Seq[CassandraColumn[_]]){
             val value = im.reflectField(scope.asTerm).get
             val v = if(value.isInstanceOf[Array[Byte]]){
               ByteBuffer.wrap(value.asInstanceOf[Array[Byte]])
+            } else if(value.isInstanceOf[Enumeration#Value]){
+              value.asInstanceOf[Enumeration#Value].id
             }else{
               value
             }

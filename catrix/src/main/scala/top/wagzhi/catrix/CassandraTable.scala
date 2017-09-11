@@ -112,7 +112,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
     CassandraQuery(tableName, QueryAction.update, columns = columns, values = values)
 
 
-  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T]): CassandraColumn[T] = CassandraColumn[T](columnName)
+  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): CassandraColumn[T] = CassandraColumn[T](columnName)
 //  {
 //
 //
@@ -131,7 +131,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
 //    }
 //  }
 
-  def column[T](columnName:String,dataType: DataType)(implicit typeTag:ru.TypeTag[T]) = CassandraColumn[T](columnName,dataType)
+  def column[T](columnName:String,dataType: DataType)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) = CassandraColumn[T](columnName,dataType)
 
 
 //  private def toTableOrColumnName(name: String): String = {

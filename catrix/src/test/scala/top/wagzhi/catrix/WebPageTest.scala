@@ -4,8 +4,12 @@ import java.util.Date
 import com.datastax.driver.core.{DataType, Row, SimpleStatement, TypeCodec}
 import org.scalatest.{Matchers, Outcome}
 import org.slf4j.LoggerFactory
+import top.wagzhi.catrix.PageStatus.PageStatus
 import top.wagzhi.catrix.query._
-
+object PageStatus extends Enumeration{
+  type PageStatus = Value
+  val NormalStatus ,DeletedStatus = Value
+}
 /**
   * Created by paul on 2017/7/31.
   * CREATE KEYSPACE catrix WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;
@@ -15,8 +19,18 @@ import top.wagzhi.catrix.query._
   * create index t_web_page_url_tag on t_web_page (tags);
   * alter table t_web_page add reply_id list<bigint>;
   * alter table t_web_page add title text;
+  * alter table t_web_page add status int;
   */
-case class TestWebPage(host:String,fetchTime:Date,fetchDay:Int,url:String,content:Option[String],tags:Set[String],links:Map[String,Int],replyId:Seq[Long]) {
+case class TestWebPage(host:String,
+                       fetchTime:Date,
+                       fetchDay:Int,
+                       url:String,
+                       content:Option[String],
+                       tags:Set[String],
+                       links:Map[String,Int],
+                       replyId:Seq[Long],
+                       status:PageStatus.Value=PageStatus.NormalStatus
+                      ) {
 
 }
 
@@ -30,8 +44,9 @@ class TestWebPageTable extends CassandraTable[TestWebPage]("t_web_page"){
   val tags = column[Set[String]]("tags")
   val links = column[Map[String,Int]]("links")
   val replyId= column[Seq[Long]]("reply_id")
+  val status = column[PageStatus]("status").withDefault(PageStatus.NormalStatus)
 
-  lazy val columns = host ~ fetchTime ~ fetchDay ~ url ~ content ~ tags ~ links ~ replyId
+  lazy val columns = host ~ fetchTime ~ fetchDay ~ url ~ content ~ tags ~ links ~ replyId ~ status
 
 
   def insert(wp:TestWebPage)(implicit conn:Connection)={
@@ -92,7 +107,8 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
           Some("中文"),
           Set[String]("新闻","娱乐","八卦"),
           Map[String,Int]("http://www.domain2.com/1.html"->1,"http://www.domain3.com/3.html"->3),
-          Seq[Long](1000l,2000l)
+          Seq[Long](1000l,2000l),
+          PageStatus.DeletedStatus
         )
       )
       samples.foreach(table.insert)
@@ -112,6 +128,7 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
       val pages = table.getByTag("娱乐").rows //table.page("www.19lou.com",20170727).rows
       pages should have length 1
       pages.head shouldBe samples(1)
+      pages.head.status shouldBe PageStatus.DeletedStatus
 
       //filter by ==
       val pages2 = table.getByUrl(samples(0).url).rows
