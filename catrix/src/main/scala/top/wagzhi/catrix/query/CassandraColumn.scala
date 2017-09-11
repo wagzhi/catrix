@@ -37,6 +37,14 @@ case class CassandraColumn[T](
     this.copy(default = Some(defaultValue))
   }
 
+
+  lazy val isEnumerationType:Boolean={
+    typeTag.tpe.baseClasses.contains(CassandraColumn.enumerationValueClassSymbol)
+  }
+  lazy val isOptionType:Boolean={
+    typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)
+  }
+
   /**
     * get column value from cassandra row
     * @param row
@@ -59,7 +67,7 @@ case class CassandraColumn[T](
     else{
       val clazz = if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
         typeTag.tpe.typeArgs.map(m.runtimeClass).map(CassandraColumn.mapPrimitiveTypes).head
-      }else if(typeTag.tpe.baseClasses.contains(CassandraColumn.enumerationValueClassSymbol)){
+      }else if(this.isEnumerationType){
         m.runtimeClass(ru.typeOf[Int])
       }else{
         m.runtimeClass(typeTag.tpe)
@@ -77,16 +85,18 @@ case class CassandraColumn[T](
         row.get(columnName,clazz)
       }
 
+
+      //map raw value to corresponding type of T
       if(rawValue == null){
-        if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+        if(isOptionType){
           None.asInstanceOf[T]
         }else{
           this.default.getOrElse(throw new IllegalArgumentException(s"column $columnName get null value, but no default value for this column."))
         }
       }else{
-        if(typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+        if(isOptionType){
           Some(rawValue).asInstanceOf[T]
-        }else if(typeTag.tpe.baseClasses.contains(CassandraColumn.enumerationValueClassSymbol)){
+        }else if(isEnumerationType){
           lazy val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
           val dv = this.default.getOrElse{
             throw new IllegalStateException(s"column ${columnName} is enumeration, must have a default value")

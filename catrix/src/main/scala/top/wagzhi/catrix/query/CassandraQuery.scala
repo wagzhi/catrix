@@ -30,7 +30,11 @@ case class CassandraQuery(
 
   def queryValues= filters.flatMap{
     f=>
-      f.value
+      if(f.column.isEnumerationType){
+        f.value.map(_.asInstanceOf[Enumeration#Value].id)
+      }else {
+        f.value
+      }
   }
 
   def execute(implicit conn:Connection)=conn.withPreparedStatement(queryString) {
