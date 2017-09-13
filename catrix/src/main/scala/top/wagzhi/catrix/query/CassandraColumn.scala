@@ -221,8 +221,6 @@ case class Columns(columns:Seq[CassandraColumn[_]]){
             val value = im.reflectField(scope.asTerm).get
             val v = if(value.isInstanceOf[Array[Byte]]){
               ByteBuffer.wrap(value.asInstanceOf[Array[Byte]])
-            } else if(value.isInstanceOf[Enumeration#Value]){
-              value.asInstanceOf[Enumeration#Value].id
             }else{
               value
             }
