@@ -198,10 +198,10 @@ object CassandraColumn{
   }
 }
 
-
 case class ColumnValue[T](column:CassandraColumn[T],value:Any){
   def getValue[T] = value.asInstanceOf[T]
 }
+
 
 case class Columns(columns:Seq[CassandraColumn[_]]){
   def ~[T] (column:CassandraColumn[T])(implicit columnList:Map[String,CassandraColumn[_]]) ={

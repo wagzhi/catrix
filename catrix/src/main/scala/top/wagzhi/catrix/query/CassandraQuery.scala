@@ -28,14 +28,7 @@ case class CassandraQuery(
 
   def allowFiltering(allowFiltering:Boolean) = this.copy(isAllowFiltering=allowFiltering)
 
-  def queryValues= filters.flatMap{
-    f=>
-      if(f.column.isEnumerationType){
-        f.value.map(_.asInstanceOf[Enumeration#Value].id)
-      }else {
-        f.value
-      }
-  }
+  def queryValues= filters.flatMap(_.value)
 
   def execute(implicit conn:Connection)=conn.withPreparedStatement(queryString) {
     (stmt, session) =>

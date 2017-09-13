@@ -53,7 +53,6 @@ case class Connection(val contactPoint:String, keyspace:String){
   }
 
   def withSession[T](f:Session=>T):T ={
-
     try{
       f(session)
     }catch {

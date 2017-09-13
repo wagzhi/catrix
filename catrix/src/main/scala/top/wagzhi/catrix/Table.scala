@@ -20,7 +20,6 @@ import scala.collection.JavaConversions._
   * Created by paul on 2017/7/20.
   */
 trait Table[T] {
-
   val modelType:Class[T]
   val logger = LoggerFactory.getLogger(getClass)
   lazy val m = ru.runtimeMirror(getClass.getClassLoader)

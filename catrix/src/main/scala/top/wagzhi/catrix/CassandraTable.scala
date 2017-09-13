@@ -1,6 +1,5 @@
 package top.wagzhi.catrix
 
-import java.util.Date
 import com.datastax.driver.core.{DataType, ResultSet, Row}
 import org.slf4j.{Logger, LoggerFactory}
 import top.wagzhi.catrix.query._
@@ -35,36 +34,11 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
     }.toMap[String,CassandraColumn[_]]
   }
 
-
-//  def extractValues[M](t:M,columns:Columns)(implicit mct:ClassTag[M]):Seq[Object] = {
-//    val m = ru.runtimeMirror(this.getClass.getClassLoader)
-//    val cs = m.classSymbol(mct.runtimeClass)
-//
-//    columns.columns.map{
-//      column=>
-//        cs.toType.decls.filter{
-//          scope=>
-//            scope.asTerm.name.toString.equals(column.fieldName)
-//        }.headOption.map{
-//          scope=>
-//            val im = m.reflect(t)
-//            im.reflectField(scope.asTerm).get
-//        }.getOrElse(throw new IllegalArgumentException("no field '"+column.fieldName+" in the object:"+m.toString()))
-//    }.map(_.asInstanceOf[Object])
-//  }
-
-
-//  def extractValues[M](t:M)(implicit mct:ClassTag[M]):Seq[Object] = {
-//    extractValues(t,this.columns)
-//  }
-
   def select(columns: CassandraColumn[_]*): CassandraQuery =
     CassandraQuery(tableName, QueryAction.select, columns = columns)
 
   def select(columns:Columns) :CassandraQuery =
     CassandraQuery(tableName, QueryAction.select, columns = columns.columns)
-
-
 
 
   def insert(columnValues:Seq[ColumnValue[_]]):CassandraQuery = {
@@ -93,8 +67,10 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
           cv.value.asInstanceOf[Seq[Object]].asJava
         }else if(columnTypeName.equals(DataType.Name.MAP)){
           cv.value.asInstanceOf[Map[Object,Object]].asJava
-        }else if(cv.column.typeTag.tpe.baseClasses.contains(CassandraColumn.optionClassSymbol)){
+        }else if(cv.column.isOptionType){
           cv.value.asInstanceOf[Option[Object]].get
+        }else if(cv.column.isEnumerationType){
+          cv.value.asInstanceOf[Enumeration#Value].id
         }
         else{
           cv.value
@@ -111,44 +87,16 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
   def update(columns: Seq[CassandraColumn[T]], values: Seq[Any]) =
     CassandraQuery(tableName, QueryAction.update, columns = columns, values = values)
 
-
   def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): CassandraColumn[T] = CassandraColumn[T](columnName)
-//  {
-//
-//
-//    val runtimeClass = typeTag.tpe
-//    if(runtimeClass.equals(ru.typeOf[Int])){
-//      CassandraColumn[Int](columnName,DataType.cint()).asInstanceOf[CassandraColumn[T]]
-//    }else if (runtimeClass.equals(ru.typeOf[String])){
-//      CassandraColumn[String](columnName,DataType.text()).asInstanceOf[CassandraColumn[T]]
-//    }else if(runtimeClass.equals(ru.typeOf[Date])){
-//      CassandraColumn[Date](columnName,DataType.timestamp()).asInstanceOf[CassandraColumn[T]]
-//    }else if (runtimeClass.baseClasses.contains(m.classSymbol(classOf[Set[_]]))){ //TODO
-//      CassandraColumn[T](columnName,DataType.set(DataType.text()))
-//    }
-//    else {
-//      throw new IllegalArgumentException("Unsupported column type "+typeTag.toString())
-//    }
-//  }
 
   def column[T](columnName:String,dataType: DataType)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) = CassandraColumn[T](columnName,dataType)
 
-
-//  private def toTableOrColumnName(name: String): String = {
-//    val n1 = name.flatMap {
-//      c =>
-//        if (c.isUpper) {
-//          "_" + c.toLower
-//        } else {
-//          c.toString
-//        }
-//    }
-//    if (n1.startsWith("_")) {
-//      n1.substring(1)
-//    } else {
-//      n1
-//    }
-//  }
+  /**
+    * map a row to table default model object
+    * @param columns
+    * @param row
+    * @return
+    */
   def mapRowDefault(columns:Columns, row:Row):T={
     val conTerm = mTypeTag.tpe.decl(ru.termNames.CONSTRUCTOR).asMethod
     val cm = m.classSymbol(mClassTag.runtimeClass)
@@ -195,6 +143,7 @@ abstract class CassandraTable[T](val tableName:String)(implicit val mTypeTag:ru.
       val rows = pageRows._1.map(f)
       MappedResultSet(rs,rows,pageRows._2)
     }
+
     def headOption:Option[Row] ={
       val it =rs.iterator()
       if(it.hasNext){
