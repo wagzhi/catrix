@@ -64,8 +64,8 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
 
   def * = parser.columns.productIterator.map(_.asInstanceOf[Column[_]]).toSeq
 
-  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): Column[T] =
-        Column[T](columnName)
+  def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): DefaultColumn[T] =
+        DefaultColumn[T](columnName)
 
   def insert(t:T) = {
     val columnValues = parser(t).productIterator.map(_.asInstanceOf[ColumnValue[_]]).toSeq

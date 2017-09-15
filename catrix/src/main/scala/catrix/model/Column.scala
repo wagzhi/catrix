@@ -63,7 +63,6 @@ case class OptionColumn[T](override val columnName:String,
       None
     }
   }
-
 }
 
 case class DefaultColumn[T](override val columnName:String,
@@ -75,6 +74,14 @@ case class DefaultColumn[T](override val columnName:String,
     val clazz = m.runtimeClass(typeTag.tpe)
     val rawValue = row.get(columnName,clazz)
     rawValue.asInstanceOf[T]
+  }
+
+  def in(t:T*)={
+    new InQueryFilter[T](this,t:_*)
+  }
+
+  def ==(t:T) = {
+    EqualsQueryFilter(this,t)
   }
 }
 /**
@@ -92,13 +99,9 @@ abstract class Column[T](val columnName:String,val columnType:DataType){
 
   def apply(row:Row):T
 
-  def ==(t:T) = {
-    EqualsQueryFilter(this,t)
-  }
 
-  def in(t:T*)={
-    new InQueryFilter[T](this,t:_*)
-  }
+
+
 
   def Desc = Order(this,OrderType.Desc)
 
@@ -235,5 +238,11 @@ object Column{
 object ListColumn{
   def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):ListColumn[T]={
     ListColumn(columnName,Column.getDataType[T])
+  }
+}
+
+object DefaultColumn{
+  def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):DefaultColumn[T]={
+    DefaultColumn(columnName,Column.getDataType[T])
   }
 }
