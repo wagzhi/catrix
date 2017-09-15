@@ -171,8 +171,6 @@ object CassandraColumn{
     }
   }
 
-
-
   def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):CassandraColumn[T]={
     val tpe = typeTag.tpe
     if(tpe.baseClasses.contains(setClassSymbol)){

@@ -23,7 +23,7 @@ case class WebPage(host:String,fetchDay:Int,fetchTime:Date,url:String,content:St
 object WebPage{
   val table = new WebPageTable()
 }
-class WebPageTable extends Table[WebPage]{
+class WebPageTable extends OlderTable[WebPage]{
   import top.wagzhi.catrix.query.QueryBuilder._
   override val modelType: Class[WebPage] = classOf[WebPage]
   def getPage(size:Int=20,state:String="")(implicit conn:Connection) = all.
@@ -39,7 +39,7 @@ class WebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
   val logger = LoggerFactory.getLogger(classOf[WebPageTest])
   case class FixtureParam(conn:Connection,pages:Seq[WebPage])
   override protected def withFixture(test: OneArgTest): Outcome = {
-    implicit val conn = Catrix.connect("127.0.0.1","catrix")
+    implicit val conn = Catrix.connect("172.16.102.238","catrix")
     try{
       val sstmt=new  SimpleStatement("truncate table web_page")
       conn.session.execute(sstmt)

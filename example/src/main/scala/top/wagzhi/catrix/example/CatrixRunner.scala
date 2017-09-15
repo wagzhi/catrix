@@ -2,7 +2,7 @@ package top.wagzhi.catrix.example
 
 import java.util.Date
 
-import top.wagzhi.catrix.{Catrix, Table}
+import top.wagzhi.catrix.{Catrix, OlderTable}
 import scala.collection.JavaConverters._
 /**
   * Created by paul on 2017/7/20.

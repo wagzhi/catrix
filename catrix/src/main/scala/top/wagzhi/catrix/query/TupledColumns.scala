@@ -10,6 +10,7 @@ trait TupledColumns {
 }
 
 abstract class RowParser[M](val columns: Columns){
+  type T <: Product
   def parse(row:Row):M
   def apply(m:M):Seq[ColumnValue[_]]
 }

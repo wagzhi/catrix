@@ -91,7 +91,7 @@ class TestWebPageTest extends org.scalatest.fixture.FlatSpec with Matchers {
   case class FixtureParam(conn: Connection, table: TestWebPageTable,samples:Seq[TestWebPage])
 
   override protected def withFixture(test: OneArgTest): Outcome = {
-    implicit val conn = Catrix.connect("127.0.0.1", "catrix")
+    implicit val conn = Catrix.connect("172.16.102.238", "catrix")
     try {
       val sstmt = new SimpleStatement("truncate table t_web_page")
       conn.session.execute(sstmt)

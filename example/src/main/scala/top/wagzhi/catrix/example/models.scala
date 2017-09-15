@@ -2,8 +2,8 @@ package top.wagzhi.catrix.example
 
 import java.util.Date
 
-import top.wagzhi.catrix.query.Column
-import top.wagzhi.catrix.{ Connection, Table}
+import top.wagzhi.catrix.query.OldColumn
+import top.wagzhi.catrix.{ Connection, OlderTable}
 import top.wagzhi.catrix.query.QueryBuilder._
 
 /**
@@ -17,7 +17,7 @@ object Book{
   lazy val books = new BookTable()
 }
 
-class BookTable extends Table[Book]{
+class BookTable extends OlderTable[Book]{
   override val modelType= classOf[Book]
   def one(implicit conn:Connection) = filter("id" === 1).select.one().as[Book]
   def page1(size:Int,state:String)(implicit conn:Connection)  = all.page(size,state).select.asPage[Book]
@@ -29,7 +29,7 @@ class BookTable extends Table[Book]{
 
 case class Page(domain:String,url:String,content:String,createdAt:Date)
 
-class PageTable extends Table[Page] {
+class PageTable extends OlderTable[Page] {
   override val modelType: Class[Page] = classOf[Page]
   def des(implicit conn:Connection) = filter("domain" === "a.com").order("createdAt","desc").select.asPage[Page]
 }
@@ -39,7 +39,7 @@ object Attachment{
   val table = new AttachmentTable()
 }
 
-class AttachmentTable extends Table[Attachment]{
+class AttachmentTable extends OlderTable[Attachment]{
   override val modelType: Class[Attachment] = classOf[Attachment]
   def getByCode(code:String)(implicit conn:Connection) = filter("code" === code).select.headOption.map(_.as[Attachment])
   def getByReferer (referer:String)(implicit conn:Connection) =

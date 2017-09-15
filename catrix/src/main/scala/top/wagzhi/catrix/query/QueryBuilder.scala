@@ -5,7 +5,7 @@ import java.util.Date
 
 import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
-import top.wagzhi.catrix.{Connection, Table}
+import top.wagzhi.catrix.{Connection, OlderTable}
 
 import scala.reflect.runtime.{universe => ru}
 
@@ -30,16 +30,16 @@ object QueryBuilder {
         n1
       }
     }
-    def asColumn = Column(this.name)
+    def asColumn = OldColumn(this.name)
 
-    def === (value:Any):Filter = Filter(Column(name),"=",value)
-    def > (value:Any):Filter= Filter(Column(name),">",value)
-    def >== (value:Any):Filter= Filter(Column(name),">=",value)
-    def < (value:Any):Filter= Filter(Column(name),"<",value)
-    def <== (value:Any):Filter= Filter(Column(name),"<=",value)
-    def _contains (value:Any):Filter = Filter(Column(name),"contains",value)
+    def === (value:Any):Filter = Filter(OldColumn(name),"=",value)
+    def > (value:Any):Filter= Filter(OldColumn(name),">",value)
+    def >== (value:Any):Filter= Filter(OldColumn(name),">=",value)
+    def < (value:Any):Filter= Filter(OldColumn(name),"<",value)
+    def <== (value:Any):Filter= Filter(OldColumn(name),"<=",value)
+    def _contains (value:Any):Filter = Filter(OldColumn(name),"contains",value)
     def in (value:Seq[Any]):Filter = {
-      Filter(Column(name),"in",value.toSeq:_*)
+      Filter(OldColumn(name),"in",value.toSeq:_*)
     }
   }
 
@@ -54,11 +54,11 @@ object QueryBuilder {
 trait FilterWord{
 
 }
-case class Column(name:String)
+case class OldColumn(name:String)
 
 
 
-case class Filter(column:Column,word:String,value:Any*){
+case class Filter(column:OldColumn, word:String, value:Any*){
   def queryString ={
     val columnName = column.name
 
@@ -76,14 +76,14 @@ case class Page(size:Int=20,state:String="")
 
 case class PageResult[T](rows:T,pagingState: String)
 
-case class OrderBy(column:Column,order:String)
+case class OrderBy(column:OldColumn, order:String)
 
 case class Query[T](tableName:String ,
                     filters:Seq[Filter]= Seq[Filter](),
                     page:Page=Page(),
                     orderBy: Option[OrderBy] = None,
                     isAllowFiltering:Boolean=false)
-                   (implicit table:Table[T]){
+                   (implicit table:OlderTable[T]){
 
   import QueryBuilder._
   private val logger = LoggerFactory.getLogger(getClass)
