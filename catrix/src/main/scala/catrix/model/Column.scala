@@ -1,14 +1,10 @@
 package catrix.model
 
-import java.awt.image.DataBuffer
-import java.nio.ByteBuffer
 import java.util.Date
 
-import catrix.model.Column.getDataType
 import catrix.query._
 import com.datastax.driver.core.{DataType, Row}
 import org.slf4j.LoggerFactory
-import top.wagzhi.catrix.query.CassandraColumn
 
 import scala.collection.JavaConversions._
 import scala.reflect.runtime.{universe => ru}
@@ -16,43 +12,57 @@ import scala.reflect.ClassTag
 
 
 case class ListColumn[T](override val columnName:String,
-                              override val columnType:DataType)
+                              override val columnType:DataType,
+                         override val isIndex:Boolean = false)
                              (implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T])
-  extends Column[Seq[T]](columnName = columnName,columnType = columnType){
+  extends Column[Seq[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Seq[T] = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
     val clazz = m.runtimeClass(typeTag.tpe)
     row.getList(this.columnName,clazz).toIndexedSeq.map(_.asInstanceOf[T])
   }
+
+  def contains(t:T)={
+    new ContainsQueryFilter[T](this,t)
+  }
+
+  override def index = this.copy(isIndex = true)
 }
 
 case class SetColumn[T](override val columnName:String,
-                         override val columnType:DataType)
+                         override val columnType:DataType,
+                        override val isIndex:Boolean = false
+                       )
                         (implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T])
-  extends Column[Set[T]](columnName = columnName,columnType = columnType){
+  extends Column[Set[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Set[T] = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
     val clazz = m.runtimeClass(typeTag.tpe)
     row.getSet(this.columnName,clazz).toSet[Any].map(_.asInstanceOf[T])
   }
+  override def index = this.copy(isIndex = true)
 }
 
 case class MapColumn[K,V](override val columnName:String,
-                        override val columnType:DataType)
+                        override val columnType:DataType,
+                          override val isIndex:Boolean = false)
                        (implicit val typeTag:ru.TypeTag[K], val classTag: ClassTag[K],val typeTagV:ru.TypeTag[V])
-  extends Column[Map[K,V]](columnName = columnName,columnType = columnType){
+  extends Column[Map[K,V]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Map[K,V] = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
     val clazz = m.runtimeClass(typeTag.tpe)
     val clazzV = m.runtimeClass(typeTagV.tpe)
     row.getMap(this.columnName,clazz,clazzV).toMap[Any,Any].asInstanceOf[Map[K,V]]
   }
+  override def index = this.copy(isIndex = true)
 }
 
 case class OptionColumn[T](override val columnName:String,
-                            override val columnType:DataType)
+                            override val columnType:DataType,
+                           override val isIndex:Boolean = false
+                          )
                           (implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T])
-  extends Column[Option[T]](columnName = columnName,columnType = columnType){
+  extends Column[Option[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Option[T] = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
     val clazz = m.runtimeClass(typeTag.tpe)
@@ -63,12 +73,56 @@ case class OptionColumn[T](override val columnName:String,
       None
     }
   }
+
+  override def index = this.copy(isIndex = true)
+
 }
 
+
+case class EnumerationColumn[T <:Enumeration#Value](override val columnName:String,
+                            override val columnType:DataType,
+                            override val isIndex:Boolean = false,override val defaultValue:Option[T]= None)
+                           (implicit override val typeTag:ru.TypeTag[T], override val classTag: ClassTag[T])
+  extends SingleValueColumn[T](columnName = columnName,columnType = columnType,isIndex = isIndex){
+  override def index = this.copy(isIndex = true)
+  override def default(t: T) = this.copy(defaultValue = Some(t))
+
+
+  private def getEnumerationValue(id:Int):T ={
+    val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
+    val valueName = typeTag.tpe.toString
+    val className = valueName.substring(0,valueName.lastIndexOf('.'))
+    val clazz = Class.forName(className)
+    val cs = universeMirror.classSymbol(clazz)
+    val cm =universeMirror.reflectModule(cs.companion.asModule)
+    val enumInst = cm.instance.asInstanceOf[Enumeration]
+    enumInst(id).asInstanceOf[T]
+  }
+
+  override def apply(row: Row): T = {
+    val id = row.getInt(columnName)
+    this.getEnumerationValue(id)
+  }
+
+}
+
+
 case class DefaultColumn[T](override val columnName:String,
-                            override val columnType:DataType)
+                            override val columnType:DataType,
+                            override val isIndex:Boolean = false,override val defaultValue:Option[T]=None)
+                           (implicit override val typeTag:ru.TypeTag[T], override val classTag: ClassTag[T])
+  extends SingleValueColumn[T](columnName = columnName,columnType = columnType,isIndex = isIndex){
+  override def index = this.copy(isIndex = true)
+
+  override def default(t: T) = this.copy(defaultValue = Some(t))
+}
+
+
+abstract class SingleValueColumn[T](override val columnName:String,
+                            override val columnType:DataType,
+                            override val isIndex:Boolean,val defaultValue:Option[T]= None)
                            (implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T])
-  extends Column[T](columnName = columnName,columnType = columnType){
+  extends Column[T](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): T = {
     val m = ru.runtimeMirror(this.getClass.getClassLoader)
     val clazz = m.runtimeClass(typeTag.tpe)
@@ -76,18 +130,21 @@ case class DefaultColumn[T](override val columnName:String,
     rawValue.asInstanceOf[T]
   }
 
-  def in(t:T*)={
+  def in(t:Seq[T])={
     new InQueryFilter[T](this,t:_*)
   }
 
   def ==(t:T) = {
     EqualsQueryFilter(this,t)
   }
+
+  def default(t:T):SingleValueColumn[T]
+
 }
 /**
   * Created by paul on 2017/9/14.
   */
-abstract class Column[T](val columnName:String,val columnType:DataType){
+abstract class Column[T](val columnName:String,val columnType:DataType,val isIndex:Boolean){
   private val logger = LoggerFactory.getLogger(getClass)
 
 //  lazy val isEnumerationType:Boolean={
@@ -99,17 +156,20 @@ abstract class Column[T](val columnName:String,val columnType:DataType){
 
   def apply(row:Row):T
 
-
-
-
-
   def Desc = Order(this,OrderType.Desc)
 
   def Asc = Order(this,OrderType.Asc)
 
   def ~[T1] (c:Column[T1]) = ColumnTuple1(this) ~ c
 
+  def index:Column[T]
 
+  def indexCql(tableName:String) =
+    if(isIndex){
+      s"create index ${tableName}_${columnName}_idx on ${tableName} ($columnName)"
+    }else{
+      ""
+    }
 //  def apply(row:Row):T = {
 //    val m = ru.runtimeMirror(this.getClass.getClassLoader)
 //    val columnTypeName = columnType.getName
@@ -237,7 +297,8 @@ object Column{
 }
 object ListColumn{
   def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):ListColumn[T]={
-    ListColumn(columnName,Column.getDataType[T])
+    val listDataType = DataType.list(Column.getDataType[T])
+    ListColumn(columnName,listDataType)
   }
 }
 

@@ -11,7 +11,14 @@ case class EqualsQueryFilter[T](column: Column[T],value:T) extends QueryFilter[T
     val columnName = column.columnName
     s"$columnName = ?"
   }
-  def values = Seq(value)
+  def values = {
+    val v = if(value.isInstanceOf[Enumeration#Value]){
+      value.asInstanceOf[Enumeration#Value].id
+    }else{
+      value
+    }
+    Seq(v)
+  }
 }
 case class InQueryFilter[T](column: Column[T],vs:T*) extends QueryFilter[T]{
   override def queryString: String = {
@@ -19,8 +26,22 @@ case class InQueryFilter[T](column: Column[T],vs:T*) extends QueryFilter[T]{
     val f = vs.toSeq.map(_=>"?").mkString(",")
     s"$columnName in ($f)"
   }
-  def values = vs.toSeq
+  def values = vs.toSeq.map{
+    value=>
+      if(value.isInstanceOf[Enumeration#Value]){
+        value.asInstanceOf[Enumeration#Value].id
+      }else{
+        value
+      }
+  }
+}
 
+case class ContainsQueryFilter[T](column: ListColumn[T],v:T) extends QueryFilter[T]{
+  override def queryString: String = {
+    s"${column.columnName} contains ?"
+  }
+
+  override def values: Seq[Any] = Seq(v)
 }
 
 trait QueryFilter[T]{

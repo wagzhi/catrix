@@ -2,11 +2,9 @@ package top.wagzhi.catrix
 import java.awt.image.SampleModel
 import java.util.Date
 
-import catrix.model
 import catrix.model.{RowParser2, Table}
 import com.datastax.driver.core.SimpleStatement
 import org.scalatest.{Matchers, Outcome}
-import top.wagzhi.catrix.query.{RowParser, TupledColumns1}
 
 /**
   * Created by paul on 2017/9/13.

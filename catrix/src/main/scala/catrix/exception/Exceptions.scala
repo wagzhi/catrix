@@ -5,3 +5,4 @@ package catrix.exception
   */
 case class ExecuteException(message:String,cause:Throwable) extends Exception(message,cause)
 case class PrepareStatementException(message: String,cause:Throwable) extends Exception(message,cause)
+case class ModelDefinitionException(message: String) extends Exception(message)
