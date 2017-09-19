@@ -1,6 +1,4 @@
-package top.wagzhi.catrix
-
-import top.wagzhi.catrix.Numbers.Numbers
+package catrix.utils
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.{universe => ru}

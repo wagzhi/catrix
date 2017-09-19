@@ -1,11 +1,11 @@
-package top.wagzhi.catrix
+package catrix
 
 import java.util.Date
 
-import catrix.model.Table
+import catrix.model.{Table, _}
 import com.datastax.driver.core.SimpleStatement
 import org.scalatest.{Matchers, Outcome}
-import top.wagzhi.catrix.model._
+import catrix.{Catrix, Connection}
 
 /**
   * Created by paul on 2017/9/18.

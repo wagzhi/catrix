@@ -1,9 +1,9 @@
-package top.wagzhi.catrix.model
+package catrix.model
 
 import java.util.Date
 
 import catrix.model.{RowParser2, Table}
-import top.wagzhi.catrix.{Connection, Simple}
+import catrix.{Connection}
 
 /**
   * Created by paul on 2017/9/18.

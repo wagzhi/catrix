@@ -4,7 +4,7 @@ import catrix.exception.ExecuteException
 import catrix.model.{Column, ColumnValue}
 import com.datastax.driver.core.{BoundStatement, PagingState}
 import org.slf4j.LoggerFactory
-import top.wagzhi.catrix.Connection
+import catrix.Connection
 
 /**
   * Created by paul on 2017/7/31.

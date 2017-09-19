@@ -1,10 +1,9 @@
 package catrix.model
 
-import java.util.Date
 
 import catrix.query.{Order, Query, QueryAction}
 import com.datastax.driver.core.{DataType, ResultSet, Row}
-import top.wagzhi.catrix.{Connection, MappedResultSet}
+import catrix.{Connection}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
