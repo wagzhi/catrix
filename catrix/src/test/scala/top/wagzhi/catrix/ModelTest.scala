@@ -17,7 +17,7 @@ abstract class ModelTest[M] extends org.scalatest.fixture.FlatSpec with Matchers
   def table(implicit conn:Connection):Table[M]
 
   override protected def withFixture(test: OneArgTest): Outcome = {
-    implicit val conn = Catrix.connect("172.16.102.238", "catrix")
+    implicit val conn = Catrix.connect("127.0.0.1", "catrix")
     try {
       val table = this.table
       if(tableCreated){
@@ -113,5 +113,32 @@ class Model4Test extends ModelTest[Model4] {
       val models = table.getByGender(Man).results
       models shouldBe samples.filter(_.gender ==  Man)
   }
-
 }
+
+class Model5Test extends ModelTest[Model5] {
+  val now = System.currentTimeMillis()
+  override val samples: Seq[Model5] = Seq(
+    Model5(1, "张三",Set("男人","牛人"),true,new Date(now)),
+    Model5(1, "李四",Set("男人","牛人"),true,new Date(now-100)),
+    Model5(1, "王五",Set("男人","牛人"),true,new Date(now-200)),
+    Model5(1, "六六",Set("女人"),true,new Date(now-300))
+  )
+
+  override def table(implicit conn: Connection) = new Model5Table()
+
+  "model5" should "get all" in {
+    f =>
+      val table = f.table.asInstanceOf[Model5Table]
+      samples.map(table.add)
+      val models = table.all().results
+      models shouldBe samples
+  }
+  it should "get by boolean" in{
+    f=>
+      val table = f.table.asInstanceOf[Model5Table]
+      samples.map(table.add)
+      val models = table.getUndeleted.results
+      models shouldBe samples.filter(!_.deleted)
+  }
+}
+

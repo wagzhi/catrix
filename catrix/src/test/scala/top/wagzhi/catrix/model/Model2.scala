@@ -98,4 +98,34 @@ class Model4Table(implicit conn:Connection) extends Table[Model4]("model4") {
   }
 }
 
+case class Model5(id:Int,name:String,tags:Set[String],deleted:Boolean,createdAt:Date)
+
+class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
+  val id = column[Int]("id")
+  val name = column[String]("name")
+  val tags = setColumn[String]("tags")
+  val deleted = column[Boolean]("deleted").index
+  val createdAt = column[Date]("created_at")
+  override lazy val primaryKey = partitionKeys(id).clusteringKeys(createdAt).orderBy(createdAt Desc)
+  val parser =
+    (id ~ name ~ tags ~ deleted ~ createdAt <> (Model5.tupled, Model5.unapply))
+
+  def add(s: Model5) = {
+    super.insert(s).execute
+  }
+
+  def getById(id: Int) = {
+    select(*).filter(this.id == 1).execute.pageResult
+  }
+
+  def all() = {
+    select(*).execute.pageResult
+  }
+
+  def getUndeleted = {
+    this.select(*).filter(this.deleted == false).execute.pageResult
+  }
+}
+
+
 

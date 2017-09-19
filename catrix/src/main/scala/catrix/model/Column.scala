@@ -31,8 +31,7 @@ case class ListColumn[T](override val columnName:String,
 
 case class SetColumn[T](override val columnName:String,
                          override val columnType:DataType,
-                        override val isIndex:Boolean = false
-                       )
+                         override val isIndex:Boolean = false)
                         (implicit val typeTag:ru.TypeTag[T], val classTag: ClassTag[T])
   extends Column[Set[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Set[T] = {
@@ -40,8 +39,23 @@ case class SetColumn[T](override val columnName:String,
     val clazz = m.runtimeClass(typeTag.tpe)
     row.getSet(this.columnName,clazz).toSet[Any].map(_.asInstanceOf[T])
   }
+
+  def contains(t:T)={
+    new ContainsQueryFilter[T](this,t)
+  }
+
   override def index = this.copy(isIndex = true)
 }
+
+abstract class TraverableColumn[T](override val columnName:String,
+                                   override val columnType:DataType,
+                                   override val isIndex:Boolean = false)
+  extends Column[Traversable[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
+
+}
+
+
+
 
 case class MapColumn[K,V](override val columnName:String,
                         override val columnType:DataType,
@@ -299,6 +313,13 @@ object ListColumn{
   def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):ListColumn[T]={
     val listDataType = DataType.list(Column.getDataType[T])
     ListColumn(columnName,listDataType)
+  }
+}
+
+object SetColumn{
+  def apply[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]):SetColumn[T]={
+    val setDataType = DataType.set(Column.getDataType[T])
+    SetColumn(columnName,setDataType)
   }
 }
 

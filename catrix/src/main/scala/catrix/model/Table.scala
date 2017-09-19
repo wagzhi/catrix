@@ -55,6 +55,9 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
         val columnType = if(c.columnType.getName.equals(DataType.Name.LIST)){
           val inType = c.columnType.getTypeArguments.get(0).getName.toString
           s"list<$inType>"
+        }else if(c.columnType.getName.equals(DataType.Name.SET)) {
+          val inType = c.columnType.getTypeArguments.get(0).getName.toString
+          s"set<$inType>"
         }else{
           c.columnType.getName.toString
         }
@@ -86,12 +89,17 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
   def listColumn[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) : ListColumn[T] =
       ListColumn[T](columnName)
 
+  def setColumn[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) : SetColumn[T] =
+    SetColumn[T](columnName)
+
   def insert(t:T) = {
     val columns = parser.*
     val values = parser(t).productIterator.map{
       v=>
         if(v.isInstanceOf[Seq[_]]){
           v.asInstanceOf[Seq[Object]].asJava
+        }else if(v.isInstanceOf[Set[_]]){
+          v.asInstanceOf[Set[Object]].asJava
         }else if(v.isInstanceOf[Enumeration#Value]){
           v.asInstanceOf[Enumeration#Value].id
         }

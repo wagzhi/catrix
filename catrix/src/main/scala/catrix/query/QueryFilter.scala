@@ -1,6 +1,6 @@
 package catrix.query
 
-import catrix.model.{Column, ListColumn}
+import catrix.model.{Column, ListColumn, TraverableColumn}
 
 
 /**
@@ -36,7 +36,7 @@ case class InQueryFilter[T](column: Column[T],vs:T*) extends QueryFilter[T]{
   }
 }
 
-case class ContainsQueryFilter[T](column: ListColumn[T],v:T) extends QueryFilter[T]{
+case class ContainsQueryFilter[T](column: Column[_],v:T) extends QueryFilter[T]{
   override def queryString: String = {
     s"${column.columnName} contains ?"
   }
