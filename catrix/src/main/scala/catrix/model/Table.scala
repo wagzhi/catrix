@@ -57,6 +57,10 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
         }else if(c.columnType.getName.equals(DataType.Name.SET)) {
           val inType = c.columnType.getTypeArguments.get(0).getName.toString
           s"set<$inType>"
+        }else if(c.columnType.getName.equals(DataType.Name.MAP)){
+          val keyType = c.columnType.getTypeArguments.get(0).getName.toString
+          val valueType =c.columnType.getTypeArguments.get(1).getName.toString
+          s"map<$keyType,$valueType>"
         }else{
           c.columnType.getName.toString
         }
@@ -66,7 +70,7 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
     s"create table $tableName ( $colums , ${primaryKey.primaryKeyCql})${primaryKey.orderByCql}"
   }
 
-  def createIndexCqls = parser.*.map(_.indexCql(tableName)).filter(_.nonEmpty)
+  def createIndexCqls = parser.*.flatMap(_.indexCql(tableName)).filter(_.nonEmpty)
 
   def dropCql = {
     s"drop table if exists $tableName"
@@ -88,8 +92,11 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
   def listColumn[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) : ListColumn[T] =
       ListColumn[T](columnName)
 
-  def setColumn[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]) : SetColumn[T] =
-    SetColumn[T](columnName)
+  def setColumn[C](columnName:String)(implicit typeTag:ru.TypeTag[C],classTag:ClassTag[C]) : SetColumn[C] =
+    SetColumn[C](columnName)
+
+  def mapColumn[K,V](columnName:String)(implicit typeTag:ru.TypeTag[K],typeTag2:ru.TypeTag[V]):MapColumn[K,V] =
+    MapColumn[K,V](columnName)(typeTag,typeTag2)
 
   def insert(t:T) = {
     val columns = parser.*
@@ -99,6 +106,8 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
           v.asInstanceOf[Seq[Object]].asJava
         }else if(v.isInstanceOf[Set[_]]){
           v.asInstanceOf[Set[Object]].asJava
+        }else if(v.isInstanceOf[Map[_,_]]){
+          v.asInstanceOf[Map[Object,Object]].asJava
         }else if(v.isInstanceOf[Enumeration#Value]){
           v.asInstanceOf[Enumeration#Value].id
         }

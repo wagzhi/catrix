@@ -1,6 +1,6 @@
 package catrix.query
 
-import catrix.model.{Column, ListColumn, TraverableColumn}
+import catrix.model.{Column, ListColumn, MapColumn, TraverableColumn}
 
 
 /**
@@ -34,6 +34,22 @@ case class InQueryFilter[T](column: Column[T],vs:T*) extends QueryFilter[T]{
         value
       }
   }
+}
+
+case class ContainsKeyQueryFilter[K,V](mapColumn: MapColumn[K,V],key:K) extends QueryFilter[Map[K,V]]{
+  override def queryString: String = {
+    s"${mapColumn.columnName} contains KEY ?"
+  }
+
+  override def values: Seq[Any] = Seq(key)
+}
+
+case class EntryQueryFilter[K,V](mapColumn: MapColumn[K,V],key:K,value:V) extends QueryFilter[Map[K,V]]{
+  override def queryString: String = {
+    s"${mapColumn.columnName}[?] = ?"
+  }
+
+  override def values: Seq[Any] = Seq(key,value)
 }
 
 case class ContainsQueryFilter[T](column: Column[_],v:T) extends QueryFilter[T]{

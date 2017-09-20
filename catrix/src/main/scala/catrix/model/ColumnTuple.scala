@@ -11,7 +11,7 @@ trait ColumnTuple {
 
 trait RowParser[M]{
   type TP <: Product
-  type TVP <: Product
+  //type TVP <: Product
   val columns:Product
   def * = columns.productIterator.map(_.asInstanceOf[Column[_]]).toSeq
   def parse(row:Row):M
@@ -91,7 +91,7 @@ case class ColumnTuple4[T1,T2,T3,T4](c1:Column[T1],c2:Column[T2],c3:Column[T3],c
 case class ColumnTuple5[T1,T2,T3,T4,T5](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5])
   extends ColumnTuple {
 
-  //def ~[T1](t:CassandraColumn[T1]) = TupledColumns2(this.
+  def ~[T6](c6:Column[T6]) = ColumnTuple6(c1,c2,c3,c4,c5,c6)
   abstract class RowParser5[M, T1, T2, T3, T4, T5](val columns: ColumnTuple5[T1, T2, T3, T4, T5]) extends RowParser[M] {
     type TP = Tuple5[T1, T2, T3, T4, T5]
     type TVP = Tuple5[ColumnValue[T1], ColumnValue[T2], ColumnValue[T3], ColumnValue[T4], ColumnValue[T5]]
@@ -108,4 +108,92 @@ case class ColumnTuple5[T1,T2,T3,T4,T5](c1:Column[T1],c2:Column[T2],c3:Column[T3
         Tuple5(cvs._1, cvs._2, cvs._3, cvs._4, cvs._5)
       }
     }
+}
+
+case class ColumnTuple6[T1,T2,T3,T4,T5,T6](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6])
+  extends ColumnTuple {
+
+  def ~[T7](c7:Column[T7]) = ColumnTuple7(c1,c2,c3,c4,c5,c6,c7)
+  abstract class RowParser6[M, T1, T2, T3, T4, T5,T6](val columns: ColumnTuple6[T1, T2, T3, T4, T5,T6]) extends RowParser[M] {
+    type TP = Tuple6[T1, T2, T3, T4, T5,T6]
+    type TVP = Tuple6[ColumnValue[T1], ColumnValue[T2], ColumnValue[T3], ColumnValue[T4], ColumnValue[T5],ColumnValue[T6]]
+
+    def apply(m: M): TP
+  }
+
+  def <>[M](f1: Tuple6[T1, T2, T3, T4, T5,T6] => M, f2: M => Option[Tuple6[T1, T2, T3, T4, T5,T6]]): RowParser6[M, T1, T2, T3, T4, T5,T6] =
+    new RowParser6[M, T1, T2, T3, T4, T5,T6](this) {
+      def parse(row: Row): M = f1(Tuple6(c1(row), c2(row), c3(row), c4(row), c5(row),c6(row)))
+
+      def apply(m: M) = {
+        f2(m).get
+      }
+    }
+}
+
+case class ColumnTuple7[T1,T2,T3,T4,T5,T6,T7](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7])
+  extends ColumnTuple {
+
+  def ~[T8](c8:Column[T8]) = ColumnTuple8(c1,c2,c3,c4,c5,c6,c7,c8)
+  abstract class RowParser7[M, T1, T2, T3, T4, T5,T6,T7]
+          (val columns: ColumnTuple7[T1, T2, T3, T4, T5,T6,T7]) extends RowParser[M] {
+    type TP = Tuple7[T1, T2, T3, T4, T5,T6,T7]
+    type TVP = Tuple7[ColumnValue[T1], ColumnValue[T2], ColumnValue[T3], ColumnValue[T4], ColumnValue[T5],ColumnValue[T6],ColumnValue[T7]]
+
+    def apply(m: M): TP
+  }
+
+  def <>[M](f1: Tuple7[T1, T2, T3, T4, T5,T6,T7] => M,
+            f2: M => Option[Tuple7[T1, T2, T3, T4, T5,T6,T7]]): RowParser7[M, T1, T2, T3, T4, T5,T6,T7] =
+    new RowParser7[M, T1, T2, T3, T4, T5,T6,T7](this) {
+      def parse(row: Row): M = f1(Tuple7(c1(row), c2(row), c3(row), c4(row), c5(row),c6(row),c7(row)))
+
+      def apply(m: M) = {
+        f2(m).get
+      }
+    }
+}
+
+case class ColumnTuple8[T1,T2,T3,T4,T5,T6,T7,T8](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7],c8:Column[T8])
+  extends ColumnTuple {
+
+  def ~[T9](c9:Column[T9]) = ColumnTuple9(c1,c2,c3,c4,c5,c6,c7,c8,c9)
+  abstract class RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8]
+  (val columns: ColumnTuple8[T1, T2, T3, T4, T5,T6,T7,T8]) extends RowParser[M] {
+    type TP = Tuple8[T1, T2, T3, T4, T5,T6,T7,T8]
+
+    def apply(m: M): TP
+  }
+
+  def <>[M](f1: Tuple8[T1, T2, T3, T4, T5,T6,T7,T8] => M,
+            f2: M => Option[Tuple8[T1, T2, T3, T4, T5,T6,T7,T8]]): RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8] =
+    new RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8](this) {
+      def parse(row: Row): M = f1(Tuple8(c1(row), c2(row), c3(row), c4(row), c5(row),c6(row),c7(row),c8(row)))
+      def apply(m: M) = {
+        f2(m).get
+      }
+    }
+}
+
+case class ColumnTuple9[T1,T2,T3,T4,T5,T6,T7,T8,T9](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7],c8:Column[T8],c9:Column[T9])
+  extends ColumnTuple {
+
+    //def ~[T1](t:CassandraColumn[T1]) = TupledColumns2(this.
+    abstract class RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9]
+    (val columns: ColumnTuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]) extends RowParser[M] {
+      type TP = Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]
+
+      def apply(m: M): TP
+    }
+
+    def <>[M](f1: Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9] => M,
+              f2: M => Option[Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]]): RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9] =
+      new RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9](this) {
+        def parse(row: Row): M = f1(Tuple9(c1(row), c2(row), c3(row), c4(row), c5(row), c6(row), c7(row), c8(row),c9(row)))
+
+        def apply(m: M) = {
+          f2(m).get
+        }
+      }
+
 }

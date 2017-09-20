@@ -127,5 +127,43 @@ class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
   }
 }
 
+case class Model6(sid:Int,uid:Int,name:String,words:Map[String,Int],deleted:Boolean,createdAt:Date)
+class Model6Table(implicit conn:Connection) extends Table[Model6]("model6") {
+  val sid = column[Int]("sid")
+  val uid = column[Int]("uid")
+  val name = column[String]("name")
+  val words = mapColumn[String,Int]("words").keyIndex.valueIndex.entryIndex
+  val deleted = column[Boolean]("deleted")
+  val createdAt = column[Date]("created_at")
+  override lazy val primaryKey = partitionKeys(sid).clusteringKeys(uid).orderBy(uid Asc)
+  val parser =
+    (sid ~ uid ~ name ~ words ~ deleted ~ createdAt <> (Model6.tupled, Model6.unapply))
+
+  def add(s: Model6) = {
+    super.insert(s).execute
+  }
+
+  def all() = {
+    select(*).execute.pageResult
+  }
+
+  def getByKey(wordKey:String)={
+    select(*).filter(words containsKey wordKey).execute.pageResult
+  }
+
+  def getByValue(wordValue:Int) ={
+    select(*).filter(words contains wordValue).execute.pageResult
+  }
+
+  def getByWord(key:String,value:Int) ={
+    select(*).filter(words hasEntry (key,value)).execute.pageResult
+  }
+
+  def getById(sid: Int,uid:Int) = {
+    select(*).filter(this.sid == sid).filter(this.uid == uid).execute.pageResult
+  }
+
+
+}
 
 

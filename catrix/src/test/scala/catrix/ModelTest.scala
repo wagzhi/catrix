@@ -17,7 +17,7 @@ abstract class ModelTest[M] extends org.scalatest.fixture.FlatSpec with Matchers
   def table(implicit conn:Connection):Table[M]
 
   override protected def withFixture(test: OneArgTest): Outcome = {
-    implicit val conn = Catrix.connect("127.0.0.1", "catrix")
+    implicit val conn = Catrix.connect("172.16.102.238", "catrix")
     try {
       val table = this.table
       if(tableCreated){
@@ -142,3 +142,46 @@ class Model5Test extends ModelTest[Model5] {
   }
 }
 
+class Model6Test extends ModelTest[Model6] {
+  val now = System.currentTimeMillis()
+  override val samples: Seq[Model6] = Seq(
+    Model6(1,1, "张三",Map("男人"->1,"牛人"->2),true,new Date(now)),
+    Model6(1,2, "李四",Map("男人"->2,"牛人"->1),true,new Date(now-100)),
+    Model6(1,3, "王五",Map("男人"->3,"牛人"->0),true,new Date(now-200)),
+    Model6(1,4, "六六",Map("女人"->5),true,new Date(now-300))
+  )
+
+  override def table(implicit conn: Connection) = new Model6Table()
+
+  "model6" should "get all" in {
+    f =>
+      val table = f.table.asInstanceOf[Model6Table]
+      samples.map(table.add)
+      val models = table.all.results
+      models shouldBe samples
+  }
+  it should "get by key" in{
+    f=>
+      val table = f.table.asInstanceOf[Model6Table]
+      samples.map(table.add)
+      val models = table.getByKey("男人").results
+      models shouldBe samples.filter(_.words.contains("男人"))
+  }
+  it should "get by value" in{
+    f=>
+      val table = f.table.asInstanceOf[Model6Table]
+      samples.map(table.add)
+      val models = table.getByValue(1).results
+      models shouldBe samples.filter(_.words.values.toSeq.contains(1))
+  }
+  it should "get by entry" in{
+    f=>
+      val table = f.table.asInstanceOf[Model6Table]
+      samples.map(table.add)
+      val models = table.getByWord("牛人",1).results
+      models shouldBe samples.filter{
+        m=>
+         m.words.contains("牛人") && m.words("牛人") == 1
+      }
+  }
+}

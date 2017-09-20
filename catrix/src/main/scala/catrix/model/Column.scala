@@ -47,28 +47,51 @@ case class SetColumn[T](override val columnName:String,
   override def index = this.copy(isIndex = true)
 }
 
-abstract class TraverableColumn[T](override val columnName:String,
-                                   override val columnType:DataType,
-                                   override val isIndex:Boolean = false)
-  extends Column[Traversable[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
-
-}
-
-
 
 
 case class MapColumn[K,V](override val columnName:String,
-                        override val columnType:DataType,
-                          override val isIndex:Boolean = false)
-                       (implicit val typeTag:ru.TypeTag[K], val classTag: ClassTag[K],val typeTagV:ru.TypeTag[V])
+                          override val columnType:DataType,
+                          override val isIndex:Boolean = false,
+                          val isKeyIndex:Boolean = false,
+                          val isValueIndex:Boolean = false,
+                          val isEntryIndex:Boolean = false
+                         )
+                         (implicit val typeTag:ru.TypeTag[K], val typeTagV:ru.TypeTag[V])
   extends Column[Map[K,V]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Map[K,V] = {
-    val m = ru.runtimeMirror(this.getClass.getClassLoader)
-    val clazz = m.runtimeClass(typeTag.tpe)
-    val clazzV = m.runtimeClass(typeTagV.tpe)
+    val clazz = Column.getRuntimeClass(typeTag.tpe)
+    val clazzV = Column.getRuntimeClass(typeTagV.tpe)
     row.getMap(this.columnName,clazz,clazzV).toMap[Any,Any].asInstanceOf[Map[K,V]]
   }
-  override def index = this.copy(isIndex = true)
+  override def index = this.copy(isIndex = true,isValueIndex = true)
+  def keyIndex = this.copy(isIndex = true,isKeyIndex = true)(typeTag,typeTagV)
+  def valueIndex = this.copy(isIndex = true,isValueIndex = true)(typeTag,typeTagV)
+  def entryIndex = this.copy(isIndex = true,isEntryIndex = true)(typeTag,typeTagV)
+
+  override def indexCql(tableName:String)={
+    var r = Seq[String]()
+    if(isKeyIndex){
+      r = r :+ s"create index ${tableName}_${columnName}_key_idx on ${tableName} ( KEYS ($columnName))"
+    }
+    if(isValueIndex){
+      r = r :+ s"create index ${tableName}_${columnName}_value_idx on ${tableName} ( VALUES ($columnName))"
+    }
+    if(isEntryIndex){
+      r = r :+ s"create index ${tableName}_${columnName}_entry_idx on ${tableName} ( ENTRIES ($columnName))"
+    }
+    r
+  }
+  def containsKey(key:K)={
+    new ContainsKeyQueryFilter(this,key)
+  }
+
+  def contains(value:V) ={
+    new ContainsQueryFilter(this,value)
+  }
+
+  def hasEntry(kv:(K,V)) = {
+    new EntryQueryFilter(this,kv._1,kv._2)
+  }
 }
 
 case class OptionColumn[T](override val columnName:String,
@@ -178,12 +201,13 @@ abstract class Column[T](val columnName:String,val columnType:DataType,val isInd
 
   def index:Column[T]
 
-  def indexCql(tableName:String) =
-    if(isIndex){
-      s"create index ${tableName}_${columnName}_idx on ${tableName} ($columnName)"
-    }else{
-      ""
+  def indexCql(tableName:String):Seq[String] = {
+    if (isIndex) {
+      Seq(s"create index ${tableName}_${columnName}_idx on ${tableName} ($columnName)")
+    } else {
+      Seq[String]()
     }
+  }
 //  def apply(row:Row):T = {
 //    val m = ru.runtimeMirror(this.getClass.getClassLoader)
 //    val columnTypeName = columnType.getName
@@ -258,6 +282,17 @@ abstract class Column[T](val columnName:String,val columnType:DataType,val isInd
   
 }
 object Column{
+
+  def getRuntimeClass(tpe:ru.Type) ={
+    val m = ru.runtimeMirror(getClass.getClassLoader)
+    val clazz =  m.runtimeClass(tpe)
+    if(clazz.getName.equals("int")){
+      classOf[java.lang.Integer]
+    }else{
+      clazz
+    }
+  }
+
   private val baseTypes = Map(
     ru.typeOf[Int]->DataType.cint(),
     ru.typeOf[String]->DataType.text(),
@@ -321,6 +356,15 @@ object SetColumn{
     val setDataType = DataType.set(Column.getDataType[T])
     SetColumn(columnName,setDataType)
   }
+}
+object MapColumn{
+  def apply[K,V](columnName:String)(implicit typeTag:ru.TypeTag[K],typeTag2:ru.TypeTag[V]):MapColumn[K,V]={
+    val kdt = Column.getDataType[K](typeTag)
+    val vdt = Column.getDataType[V](typeTag2)
+    val mapDataType = DataType.map(kdt,vdt)
+    MapColumn(columnName,mapDataType)
+  }
+
 }
 
 object DefaultColumn{
