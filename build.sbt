@@ -12,6 +12,7 @@ lazy val catrix = (project in file("catrix")).
   settings(commonSettings: _*).
   settings(
     name := "catrix",
+    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-reflect" % "2.11.8",
       "com.typesafe.akka" %% "akka-http-core" % "10.0.0" withSources(),

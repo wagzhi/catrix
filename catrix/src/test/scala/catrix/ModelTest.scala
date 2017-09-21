@@ -3,10 +3,48 @@ package catrix
 import java.util.Date
 
 import catrix.model.{Table, _}
-import com.datastax.driver.core.SimpleStatement
+import com.datastax.driver.core.{Cluster, PoolingOptions, SimpleStatement, SocketOptions}
 import org.scalatest.{Matchers, Outcome}
-import catrix.{Catrix, Connection}
+import scala.collection.JavaConverters._
+object ConnectManager{
+  private var tableCreated = false
 
+  def  conn:Connection = this.synchronized{
+    val cluster = Cluster.builder().addContactPoint("172.16.102.238")
+      .withSocketOptions(new SocketOptions().setConnectTimeoutMillis(5000).setReadTimeoutMillis(20000))
+      .build()
+    implicit val conn = Catrix.connect(cluster, "catrix")
+    conn
+  }
+
+
+  def createTables()={
+    implicit val conn = ConnectManager.conn
+    try {
+      val tables = Seq[Table[_]](
+        new Model2Table(),
+        new Model3Table(),
+        new Model4Table(),
+        new Model5Table(),
+        new Model6Table(),
+        new Model7Table()
+      )
+      tables.foreach {
+        table =>
+          conn.session.execute(new SimpleStatement(table.dropCql))
+
+          table.createCqls.foreach {
+            s =>
+              println(s)
+              conn.session.execute(new SimpleStatement(s))
+          }
+      }
+    }finally {
+      conn.close
+    }
+
+  }
+}
 /**
   * Created by paul on 2017/9/18.
   */
@@ -17,23 +55,10 @@ abstract class ModelTest[M] extends org.scalatest.fixture.FlatSpec with Matchers
   def table(implicit conn:Connection):Table[M]
 
   override protected def withFixture(test: OneArgTest): Outcome = {
-    implicit val conn = Catrix.connect("172.16.102.238", "catrix")
+    implicit val conn = ConnectManager.conn
     try {
       val table = this.table
-      if(tableCreated){
-        conn.session.execute(new SimpleStatement(table.truncateCql))
-      }else{
-        conn.session.execute(new SimpleStatement(table.dropCql))
-        val createcql = table.createCql
-        println(createcql)
-        conn.session.execute(new SimpleStatement(createcql))
-        table.createIndexCqls.foreach{
-          s=>
-            println(s)
-            conn.session.execute(new SimpleStatement(s))
-        }
-        tableCreated = true
-      }
+      conn.session.execute(new SimpleStatement(table.truncateCql))
 
       withFixture(test.toNoArgTest(FixtureParam(conn, table,this.samples)))
     }finally {

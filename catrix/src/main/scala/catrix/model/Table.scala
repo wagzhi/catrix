@@ -1,9 +1,11 @@
 package catrix.model
 
 
+import java.nio.ByteBuffer
+
 import catrix.query.{Order, Query, QueryAction}
 import com.datastax.driver.core.{DataType, ResultSet, Row}
-import catrix.{Connection}
+import catrix.Connection
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -47,8 +49,7 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
 
   def partitionKeys(columns:Column[_]*): PrimaryKey = PrimaryKey(columns.toSeq)
 
-
-  def createCql = {
+  def createTableCql = {
     val colums = parser.columns.productIterator.map(_.asInstanceOf[Column[_]]).map{
       c=>
         val columnType = if(c.columnType.getName.equals(DataType.Name.LIST)){
@@ -72,6 +73,8 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
 
   def createIndexCqls = parser.*.flatMap(_.indexCql(tableName)).filter(_.nonEmpty)
 
+  def createCqls:Seq[String] = this.createTableCql +: createIndexCqls
+
   def dropCql = {
     s"drop table if exists $tableName"
   }
@@ -83,8 +86,8 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
 
   def * = parser.columns.productIterator.map(_.asInstanceOf[Column[_]]).toSeq
 
-  def enumColumn[T <: Enumeration#Value](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): EnumerationColumn[T] =
-    EnumerationColumn[T](columnName,DataType.cint())
+//  def enumColumn[T <: Enumeration#Value](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): EnumerationColumn[T] =
+//    EnumerationColumn[T](columnName,DataType.cint())
 
   def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): DefaultColumn[T] =
         DefaultColumn[T](columnName)
@@ -100,21 +103,24 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
 
   def insert(t:T) = {
     val columns = parser.*
-    val values = parser(t).productIterator.map{
-      v=>
-        if(v.isInstanceOf[Seq[_]]){
-          v.asInstanceOf[Seq[Object]].asJava
-        }else if(v.isInstanceOf[Set[_]]){
-          v.asInstanceOf[Set[Object]].asJava
-        }else if(v.isInstanceOf[Map[_,_]]){
-          v.asInstanceOf[Map[Object,Object]].asJava
-        }else if(v.isInstanceOf[Enumeration#Value]){
-          v.asInstanceOf[Enumeration#Value].id
-        }
-        else{
-          v
-        }
-    }.toSeq
+    val values = parser.values(t).map(_.valueToCassandra)
+//    parser(t).productIterator.map{
+//      v=>
+//        if(v.isInstanceOf[Seq[_]]){
+//          v.asInstanceOf[Seq[Object]].asJava
+//        }else if(v.isInstanceOf[Set[_]]){
+//          v.asInstanceOf[Set[Object]].asJava
+//        }else if(v.isInstanceOf[Map[_,_]]){
+//          v.asInstanceOf[Map[Object,Object]].asJava
+//        }else if(v.isInstanceOf[Enumeration#Value]){
+//          v.asInstanceOf[Enumeration#Value].id
+//        }else if(v.isInstanceOf[Array[Byte]]){
+//          ByteBuffer.wrap(v.asInstanceOf[Array[Byte]])
+//        }
+//        else{
+//          v
+//        }
+//    }.toSeq
     Query(tableName,QueryAction.insert,columns,values)
   }
 

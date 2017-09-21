@@ -14,6 +14,7 @@ trait RowParser[M]{
   //type TVP <: Product
   val columns:Product
   def * = columns.productIterator.map(_.asInstanceOf[Column[_]]).toSeq
+  def values(m:M):Seq[ColumnValue[_]]
   def parse(row:Row):M
   def apply(m:M):TP
 }
@@ -30,6 +31,11 @@ case class ColumnTuple1[T1](c1:Column[T1]) extends ColumnTuple{
     def apply(m:M):TP = {
       val cvs = f2(m).get
       Tuple1(cvs._1)
+    }
+    def values(m:M) = {
+      val cvs =this.apply(m)
+      (ColumnValue[T1](c1,cvs._1)).
+        productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
     }
   }
 }
@@ -49,6 +55,11 @@ case class ColumnTuple2[T1,T2](c1:Column[T1],c2:Column[T2]) extends ColumnTuple{
       val cvs = f2(m).get
       Tuple2(cvs._1,cvs._2)
     }
+    def values(m:M) = {
+      val cvs =this.apply(m)
+      (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2)).
+        productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
+    }
   }
 }
 
@@ -66,7 +77,13 @@ case class ColumnTuple3[T1,T2,T3](c1:Column[T1],c2:Column[T2],c3:Column[T3]) ext
       val cvs = f2(m).get
       Tuple3(cvs._1,cvs._2, cvs._3)
     }
+    def values(m:M) = {
+      val cvs =this.apply(m)
+      (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3)).
+        productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
+    }
   }
+
 }
 
 
@@ -85,6 +102,11 @@ case class ColumnTuple4[T1,T2,T3,T4](c1:Column[T1],c2:Column[T2],c3:Column[T3],c
       val cvs = f2(m).get
       Tuple4(cvs._1,cvs._2, cvs._3,cvs._4)
     }
+      def values(m:M) = {
+        val cvs =this.apply(m)
+        (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4)).
+          productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
+      }
   }
 }
 
@@ -107,6 +129,11 @@ case class ColumnTuple5[T1,T2,T3,T4,T5](c1:Column[T1],c2:Column[T2],c3:Column[T3
         val cvs = f2(m).get
         Tuple5(cvs._1, cvs._2, cvs._3, cvs._4, cvs._5)
       }
+      def values(m:M) = {
+        val cvs =this.apply(m)
+        (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4),ColumnValue[T5](c5,cvs._5)).
+          productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
+      }
     }
 }
 
@@ -127,6 +154,12 @@ case class ColumnTuple6[T1,T2,T3,T4,T5,T6](c1:Column[T1],c2:Column[T2],c3:Column
 
       def apply(m: M) = {
         f2(m).get
+      }
+      def values(m:M) = {
+        val cvs =this.apply(m)
+        (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4),ColumnValue[T5](c5,cvs._5),
+          ColumnValue[T6](c6,cvs._6)).
+          productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
       }
     }
 }
@@ -151,6 +184,12 @@ case class ColumnTuple7[T1,T2,T3,T4,T5,T6,T7](c1:Column[T1],c2:Column[T2],c3:Col
       def apply(m: M) = {
         f2(m).get
       }
+      def values(m:M) = {
+        val cvs =this.apply(m)
+        (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4),ColumnValue[T5](c5,cvs._5),
+          ColumnValue[T6](c6,cvs._6),ColumnValue[T7](c7,cvs._7)).
+          productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
+      }
     }
 }
 
@@ -171,6 +210,12 @@ case class ColumnTuple8[T1,T2,T3,T4,T5,T6,T7,T8](c1:Column[T1],c2:Column[T2],c3:
       def parse(row: Row): M = f1(Tuple8(c1(row), c2(row), c3(row), c4(row), c5(row),c6(row),c7(row),c8(row)))
       def apply(m: M) = {
         f2(m).get
+      }
+      def values(m:M) = {
+        val cvs =this.apply(m)
+        (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4),ColumnValue[T5](c5,cvs._5),
+          ColumnValue[T6](c6,cvs._6),ColumnValue[T7](c7,cvs._7),ColumnValue[T8](c8,cvs._8)).
+          productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
       }
     }
 }
@@ -193,6 +238,12 @@ case class ColumnTuple9[T1,T2,T3,T4,T5,T6,T7,T8,T9](c1:Column[T1],c2:Column[T2],
 
         def apply(m: M) = {
           f2(m).get
+        }
+        def values(m:M) = {
+          val cvs =this.apply(m)
+          (ColumnValue[T1](c1,cvs._1),ColumnValue[T2](c2,cvs._2),ColumnValue[T3](c3,cvs._3),ColumnValue[T4](c4,cvs._4),ColumnValue[T5](c5,cvs._5),
+            ColumnValue[T6](c6,cvs._6),ColumnValue[T7](c7,cvs._7),ColumnValue[T8](c8,cvs._8),ColumnValue[T9](c9,cvs._9)).
+            productIterator.toSeq.map(_.asInstanceOf[ColumnValue[_]])
         }
       }
 

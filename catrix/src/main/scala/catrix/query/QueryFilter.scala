@@ -1,6 +1,6 @@
 package catrix.query
 
-import catrix.model.{Column, ListColumn, MapColumn, TraverableColumn}
+import catrix.model.{Column, MapColumn}
 
 
 /**

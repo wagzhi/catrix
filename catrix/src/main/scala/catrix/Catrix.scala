@@ -1,6 +1,6 @@
 package catrix
 
-import com.datastax.driver.core.{Cluster, PreparedStatement, Session}
+import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
 import top.wagzhi.catrix.exception.{ExecuteException, PrepareStatementException}
 
@@ -8,14 +8,22 @@ import top.wagzhi.catrix.exception.{ExecuteException, PrepareStatementException}
   * Created by paul on 2017/7/20.
   */
 object Catrix{
-  def connect(contactPoint:String,keyspace:String) =
-        Connection(contactPoint ,keyspace)
+  def connect(contactPoint:String,keyspace:String) ={
+    val cluster = Cluster.builder().addContactPoint(contactPoint).build()
+    Connection(cluster ,keyspace)
+  }
+
+
+  def connect(cluster:Cluster,keyspace:String) ={
+    Connection(cluster,keyspace)
+  }
 }
 
-case class Connection(val contactPoint:String, keyspace:String){
+case class Connection(val cluster: Cluster, keyspace:String){
   private val logger = LoggerFactory.getLogger(getClass)
-  val cluster = Cluster.builder().addContactPoint(contactPoint).build()
+
   lazy val session = cluster.connect(keyspace)
+
 
   def close ={
     session.close()

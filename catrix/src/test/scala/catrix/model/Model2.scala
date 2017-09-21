@@ -75,7 +75,7 @@ case class Model4(id:Int,name:String,gender:Gender,createdAt:Date)
 class Model4Table(implicit conn:Connection) extends Table[Model4]("model4") {
   val id = column[Int]("id")
   val name = column[String]("name")
-  val gender = enumColumn[Gender]("gender").default(UnknownGender).index
+  val gender = column[Gender]("gender").default(UnknownGender).index
   val createdAt = column[Date]("created_at")
   override lazy val primaryKey = partitionKeys(id).clusteringKeys(createdAt).orderBy(createdAt Desc)
   val parser =
