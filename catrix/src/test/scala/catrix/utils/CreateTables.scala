@@ -20,7 +20,8 @@ object CreateTables{
         new Model4Table(),
         new Model5Table(),
         new Model6Table(),
-        new Model7Table()
+        new Model7Table(),
+        new Model8Table()
       )
       tables.foreach {
         table =>

@@ -12,11 +12,7 @@ case class EqualsQueryFilter[T](column: Column[T],value:T) extends QueryFilter[T
     s"$columnName = ?"
   }
   def values = {
-    val v = if(value.isInstanceOf[Enumeration#Value]){
-      value.asInstanceOf[Enumeration#Value].id
-    }else{
-      value
-    }
+    val v = column.valueAsJava(value)
     Seq(v)
   }
 }

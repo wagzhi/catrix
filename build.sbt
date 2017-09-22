@@ -1,8 +1,36 @@
 lazy val commonSettings = Seq(
-  organization := "top.wagzhi",
-  version := "0.0.1-SNAPSHOT",
+  organization := "com.github.wagzhi",
+  version := "0.0.2",
   scalaVersion := "2.11.8" ,
-  publishTo := Some(Resolver.file("file",  new File( Path.userHome.absolutePath+"/.m2/repository")) ),
+  publishMavenStyle := true,
+  useGpg := true,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+  },
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/wagzhi/catrix"),
+      "scm:git@github.com:wagzhi/catrix.git"
+    )
+  ),
+  licenses := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php")),
+
+  homepage := Some(url("http://github.com/wagzhi/catrix")),
+
+  developers := List(
+    Developer(
+      id    = "wagzhi",
+      name  = "Paul Wang",
+      email = "wagzhi@gmail.com",
+      url   = url("http://github.com/wagzhi")
+    )
+  ),
+  //publishTo :=
+  // Some(Resolver.file("file",  new File( Path.userHome.absolutePath+"/.m2/repository")) ),
   resolvers ++= Seq(
     "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
   )

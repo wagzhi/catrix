@@ -1,13 +1,9 @@
 package catrix.model
 
-
-import java.nio.ByteBuffer
-
 import catrix.query.{Order, Query, QueryAction}
 import com.datastax.driver.core.{DataType, ResultSet, Row}
 import catrix.Connection
 
-import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.{universe => ru}
 /**
@@ -104,23 +100,6 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
   def insert(t:T) = {
     val columns = parser.*
     val values = parser.values(t).map(_.valueToCassandra)
-//    parser(t).productIterator.map{
-//      v=>
-//        if(v.isInstanceOf[Seq[_]]){
-//          v.asInstanceOf[Seq[Object]].asJava
-//        }else if(v.isInstanceOf[Set[_]]){
-//          v.asInstanceOf[Set[Object]].asJava
-//        }else if(v.isInstanceOf[Map[_,_]]){
-//          v.asInstanceOf[Map[Object,Object]].asJava
-//        }else if(v.isInstanceOf[Enumeration#Value]){
-//          v.asInstanceOf[Enumeration#Value].id
-//        }else if(v.isInstanceOf[Array[Byte]]){
-//          ByteBuffer.wrap(v.asInstanceOf[Array[Byte]])
-//        }
-//        else{
-//          v
-//        }
-//    }.toSeq
     Query(tableName,QueryAction.insert,columns,values)
   }
 

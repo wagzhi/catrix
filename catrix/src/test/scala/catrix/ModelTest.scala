@@ -3,9 +3,8 @@ package catrix
 import java.util.Date
 
 import catrix.model.{Table, _}
-import com.datastax.driver.core.{Cluster, PoolingOptions, SimpleStatement, SocketOptions}
+import com.datastax.driver.core.{Cluster,SimpleStatement, SocketOptions}
 import org.scalatest.{Matchers, Outcome}
-import scala.collection.JavaConverters._
 object ConnectManager{
   private var tableCreated = false
 
@@ -18,6 +17,30 @@ object ConnectManager{
   }
 
 
+  def createTable(n:Int) ={
+    implicit val conn = ConnectManager.conn
+    try {
+      val tables = Seq[Table[_]](
+        new Model2Table(),
+        new Model3Table(),
+        new Model4Table(),
+        new Model5Table(),
+        new Model6Table(),
+        new Model7Table(),
+        new Model8Table()
+      )
+      val table = tables(n-2)
+          conn.session.execute(new SimpleStatement(table.dropCql))
+          table.createCqls.foreach {
+            s =>
+              println(s)
+              conn.session.execute(new SimpleStatement(s))
+          }
+    }finally {
+      conn.close
+    }
+
+  }
   def createTables()={
     implicit val conn = ConnectManager.conn
     try {
@@ -27,7 +50,8 @@ object ConnectManager{
         new Model4Table(),
         new Model5Table(),
         new Model6Table(),
-        new Model7Table()
+        new Model7Table(),
+        new Model8Table()
       )
       tables.foreach {
         table =>

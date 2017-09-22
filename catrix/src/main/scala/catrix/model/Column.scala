@@ -21,7 +21,7 @@ case class ListColumn[T](override val columnName:String,
   extends Column[Seq[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Seq[T] = {
     val clazz = Column.getRuntimeClass(typeTag.tpe)
-    row.getList(this.columnName,clazz).toIndexedSeq.map(_.asInstanceOf[T])
+    row.getList(this.columnName,clazz).toIndexedSeq.map(_.asInstanceOf[T]).toSeq
   }
 
   def contains(t:T)={
@@ -167,6 +167,10 @@ case class DefaultColumn[T](override val columnName:String,
     }
   }
 
+  def option = OptionColumn[T](columnName,columnType,isIndex)
+
+  def ? = option
+
   def default(t: T) = this.copy(defaultValue = Some(t))
 }
 
@@ -184,7 +188,10 @@ abstract class SingleValueColumn[T](override val columnName:String,
   def valueAsJava(v:T):Any = {
     if(v.isInstanceOf[Enumeration#Value]){
       v.asInstanceOf[Enumeration#Value].id
-    }else if(v.isInstanceOf[Array[Byte]]){
+    }else if(v.isInstanceOf[Option[_]]){
+      v.asInstanceOf[Option[Any]].getOrElse(null)
+    }
+    else if(v.isInstanceOf[Array[Byte]]){
       ByteBuffer.wrap(v.asInstanceOf[Array[Byte]])
     }
     else{
@@ -206,7 +213,7 @@ abstract class SingleValueColumn[T](override val columnName:String,
   def getRawValue[RT](row:Row)(implicit typeTag: ru.TypeTag[RT]):Option[RT] = {
     //  val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
 
-    val clazz = Column.getRuntimeClass(typeTag.tpe)
+
     //convert cassandra original java class to model defined class
     val rawValue = if(typeTag.tpe.baseClasses.contains(typeOf[Enumeration#Value].typeSymbol.asClass)){
       if(row.isNull(columnName)){
@@ -215,7 +222,7 @@ abstract class SingleValueColumn[T](override val columnName:String,
         val id = row.getInt(columnName)
         this.getEnumerationValue(id)
       }
-    }else if(clazz.isInstanceOf[Array[Byte]]){
+    }else if(typeTag.tpe.equals(typeOf[Array[Byte]])){
       val bf = row.getBytes(columnName)
       if(bf == null){
         null
@@ -223,6 +230,7 @@ abstract class SingleValueColumn[T](override val columnName:String,
         bf.array()
       }
     }else{
+      val clazz = Column.getRuntimeClass(typeTag.tpe)
       row.get(columnName,clazz)
     }
     //map null to None
