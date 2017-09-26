@@ -6,7 +6,9 @@ import com.datastax.driver.core.Row
   * Created by paul on 2017/9/14.
   */
 trait ColumnTuple {
-
+  type TP <: Product
+  def tupleParser : RowParser[TP]
+  def * = tupleParser.*
 }
 
 trait RowParser[M]{
@@ -19,6 +21,7 @@ trait RowParser[M]{
   def apply(m:M):TP
 }
 case class ColumnTuple1[T1](c1:Column[T1]) extends ColumnTuple{
+  type TP = Tuple1[T1]
   def ~[T2](c2:Column[T2]):ColumnTuple2[T1,T2] = ColumnTuple2[T1,T2](c1,c2)
 
   abstract class RowParser1[M,T1] (val columns:ColumnTuple1[T1]) extends RowParser[M]{
@@ -26,6 +29,14 @@ case class ColumnTuple1[T1](c1:Column[T1]) extends ColumnTuple{
     type TVP = Tuple1[ColumnValue[T1]]
     def apply(m:M):TP
   }
+
+  def tupleParser = {
+    def f(tp:Tuple1[T1]):Tuple1[T1] = tp
+    def f2(tp:Tuple1[T1]) = Some(tp)
+    <>[Tuple1[T1]](f,f2)
+  }
+
+
   def <>[M](f:Tuple1[T1]=>M,f2:M=>Option[Tuple1[T1]]):RowParser1[M,T1] = new RowParser1[M,T1](this) {
     def parse(row:Row):M = f(Tuple1(c1(row)))
     def apply(m:M):TP = {
@@ -47,6 +58,14 @@ abstract class RowParser2[M,T1,T2] (val columns:ColumnTuple2[T1,T2]) extends Row
 
 case class ColumnTuple2[T1,T2](c1:Column[T1],c2:Column[T2]) extends ColumnTuple{
   def ~[T3](c3:Column[T3]) = ColumnTuple3(c1,c2,c3)
+  type TP = Tuple2[T1,T2]
+
+  def tupleParser = {
+    def f(tp:Tuple2[T1,T2]):Tuple2[T1,T2] = tp
+    def f2(tp:Tuple2[T1,T2]) = Some(tp)
+    <>[Tuple2[T1,T2]](f,f2)
+  }
+
   def <>[M](f1:Tuple2[T1,T2]=>M,f2:M=>Option[(T1,T2)]):RowParser2[M,T1,T2]  = new RowParser2[M,T1,T2](this) {
     def parse(row:Row):M = {
       f1(Tuple2(c1(row),c2(row)))
@@ -64,13 +83,20 @@ case class ColumnTuple2[T1,T2](c1:Column[T1],c2:Column[T2]) extends ColumnTuple{
 }
 
 case class ColumnTuple3[T1,T2,T3](c1:Column[T1],c2:Column[T2],c3:Column[T3]) extends ColumnTuple {
-
+  type TP = Tuple3[T1,T2,T3]
   def ~[T4](c4:Column[T4]) = ColumnTuple4(c1,c2,c3,c4)
   abstract class RowParser3[M, T1, T2, T3](val columns: ColumnTuple3[T1, T2, T3]) extends RowParser[M] {
     type TP = Tuple3[T1,T2,T3]
     type TVP = Tuple3[ColumnValue[T1],ColumnValue[T2],ColumnValue[T3]]
     def apply(m:M):TP
   }
+
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
+  }
+
   def <>[M](f1: Tuple3[T1, T2, T3] => M, f2: M => Option[Tuple3[T1, T2, T3]]):RowParser3[M,T1,T2,T3]  = new RowParser3[M, T1, T2, T3](this) {
     def parse(row: Row): M = f1(Tuple3(c1(row), c2(row), c3(row)))
     def apply(m: M) = {
@@ -88,12 +114,17 @@ case class ColumnTuple3[T1,T2,T3](c1:Column[T1],c2:Column[T2],c3:Column[T3]) ext
 
 
 case class ColumnTuple4[T1,T2,T3,T4](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4]) extends ColumnTuple {
-
+  type TP = Tuple4[T1,T2,T3,T4]
   def ~[T5](c5:Column[T5]) = ColumnTuple5(c1,c2,c3,c4,c5)
   abstract class RowParser4[M, T1, T2, T3,T4](val columns: ColumnTuple4[T1, T2, T3,T4]) extends RowParser[M] {
     type TP = Tuple4[T1,T2,T3,T4]
     type TVP = Tuple4[ColumnValue[T1],ColumnValue[T2],ColumnValue[T3],ColumnValue[T4]]
     def apply(m:M):TP
+  }
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
   }
   def <>[M](f1: Tuple4[T1, T2, T3,T4] => M, f2: M => Option[Tuple4[T1, T2, T3,T4]]):RowParser4[M,T1,T2,T3,T4]  =
     new RowParser4[M, T1, T2, T3,T4](this) {
@@ -112,13 +143,19 @@ case class ColumnTuple4[T1,T2,T3,T4](c1:Column[T1],c2:Column[T2],c3:Column[T3],c
 
 case class ColumnTuple5[T1,T2,T3,T4,T5](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5])
   extends ColumnTuple {
-
+  type TP = Tuple5[T1, T2, T3, T4, T5]
   def ~[T6](c6:Column[T6]) = ColumnTuple6(c1,c2,c3,c4,c5,c6)
   abstract class RowParser5[M, T1, T2, T3, T4, T5](val columns: ColumnTuple5[T1, T2, T3, T4, T5]) extends RowParser[M] {
     type TP = Tuple5[T1, T2, T3, T4, T5]
     type TVP = Tuple5[ColumnValue[T1], ColumnValue[T2], ColumnValue[T3], ColumnValue[T4], ColumnValue[T5]]
 
     def apply(m: M): TP
+  }
+
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
   }
 
   def <>[M](f1: Tuple5[T1, T2, T3, T4, T5] => M, f2: M => Option[Tuple5[T1, T2, T3, T4, T5]]): RowParser5[M, T1, T2, T3, T4, T5] =
@@ -139,6 +176,7 @@ case class ColumnTuple5[T1,T2,T3,T4,T5](c1:Column[T1],c2:Column[T2],c3:Column[T3
 
 case class ColumnTuple6[T1,T2,T3,T4,T5,T6](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6])
   extends ColumnTuple {
+  type TP = Tuple6[T1, T2, T3, T4, T5,T6]
 
   def ~[T7](c7:Column[T7]) = ColumnTuple7(c1,c2,c3,c4,c5,c6,c7)
   abstract class RowParser6[M, T1, T2, T3, T4, T5,T6](val columns: ColumnTuple6[T1, T2, T3, T4, T5,T6]) extends RowParser[M] {
@@ -146,6 +184,12 @@ case class ColumnTuple6[T1,T2,T3,T4,T5,T6](c1:Column[T1],c2:Column[T2],c3:Column
     type TVP = Tuple6[ColumnValue[T1], ColumnValue[T2], ColumnValue[T3], ColumnValue[T4], ColumnValue[T5],ColumnValue[T6]]
 
     def apply(m: M): TP
+  }
+
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
   }
 
   def <>[M](f1: Tuple6[T1, T2, T3, T4, T5,T6] => M, f2: M => Option[Tuple6[T1, T2, T3, T4, T5,T6]]): RowParser6[M, T1, T2, T3, T4, T5,T6] =
@@ -166,6 +210,7 @@ case class ColumnTuple6[T1,T2,T3,T4,T5,T6](c1:Column[T1],c2:Column[T2],c3:Column
 
 case class ColumnTuple7[T1,T2,T3,T4,T5,T6,T7](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7])
   extends ColumnTuple {
+  type TP = Tuple7[T1, T2, T3, T4, T5,T6,T7]
 
   def ~[T8](c8:Column[T8]) = ColumnTuple8(c1,c2,c3,c4,c5,c6,c7,c8)
   abstract class RowParser7[M, T1, T2, T3, T4, T5,T6,T7]
@@ -176,6 +221,11 @@ case class ColumnTuple7[T1,T2,T3,T4,T5,T6,T7](c1:Column[T1],c2:Column[T2],c3:Col
     def apply(m: M): TP
   }
 
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
+  }
   def <>[M](f1: Tuple7[T1, T2, T3, T4, T5,T6,T7] => M,
             f2: M => Option[Tuple7[T1, T2, T3, T4, T5,T6,T7]]): RowParser7[M, T1, T2, T3, T4, T5,T6,T7] =
     new RowParser7[M, T1, T2, T3, T4, T5,T6,T7](this) {
@@ -195,7 +245,7 @@ case class ColumnTuple7[T1,T2,T3,T4,T5,T6,T7](c1:Column[T1],c2:Column[T2],c3:Col
 
 case class ColumnTuple8[T1,T2,T3,T4,T5,T6,T7,T8](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7],c8:Column[T8])
   extends ColumnTuple {
-
+  type TP = Tuple8[T1, T2, T3, T4, T5,T6,T7,T8]
   def ~[T9](c9:Column[T9]) = ColumnTuple9(c1,c2,c3,c4,c5,c6,c7,c8,c9)
   abstract class RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8]
   (val columns: ColumnTuple8[T1, T2, T3, T4, T5,T6,T7,T8]) extends RowParser[M] {
@@ -204,6 +254,11 @@ case class ColumnTuple8[T1,T2,T3,T4,T5,T6,T7,T8](c1:Column[T1],c2:Column[T2],c3:
     def apply(m: M): TP
   }
 
+  def tupleParser = {
+    def f(tp:TP):TP = tp
+    def f2(tp:TP) = Some(tp)
+    <>[TP](f,f2)
+  }
   def <>[M](f1: Tuple8[T1, T2, T3, T4, T5,T6,T7,T8] => M,
             f2: M => Option[Tuple8[T1, T2, T3, T4, T5,T6,T7,T8]]): RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8] =
     new RowParser8[M, T1, T2, T3, T4, T5,T6,T7,T8](this) {
@@ -222,7 +277,7 @@ case class ColumnTuple8[T1,T2,T3,T4,T5,T6,T7,T8](c1:Column[T1],c2:Column[T2],c3:
 
 case class ColumnTuple9[T1,T2,T3,T4,T5,T6,T7,T8,T9](c1:Column[T1],c2:Column[T2],c3:Column[T3],c4:Column[T4],c5:Column[T5],c6:Column[T6],c7:Column[T7],c8:Column[T8],c9:Column[T9])
   extends ColumnTuple {
-
+    type TP = Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]
     //def ~[T1](t:CassandraColumn[T1]) = TupledColumns2(this.
     abstract class RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9]
     (val columns: ColumnTuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]) extends RowParser[M] {
@@ -231,6 +286,11 @@ case class ColumnTuple9[T1,T2,T3,T4,T5,T6,T7,T8,T9](c1:Column[T1],c2:Column[T2],
       def apply(m: M): TP
     }
 
+    def tupleParser = {
+      def f(tp:TP):TP = tp
+      def f2(tp:TP) = Some(tp)
+      <>[TP](f,f2)
+    }
     def <>[M](f1: Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9] => M,
               f2: M => Option[Tuple9[T1, T2, T3, T4, T5, T6, T7, T8, T9]]): RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9] =
       new RowParser9[M, T1, T2, T3, T4, T5, T6, T7, T8, T9](this) {

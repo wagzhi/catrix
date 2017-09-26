@@ -35,6 +35,16 @@ class Model2Table(implicit conn:Connection) extends Table[Model2]("model2") {
 }
 
 
+class Model2TupleTable(implicit conn:Connection) extends Table[(Int,String)]("model2"){
+  val id = column[Int]("id")
+  val name = column[String]("name").index
+  override val parser: RowParser[(Int, String)] = (id ~ name).tupleParser
+
+  def fistPage() ={
+    select(*).execute.pageResult
+  }
+}
+
 case class Model3(id:Int,name:String,tags:Seq[String])
 
 class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
@@ -55,6 +65,10 @@ class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
 
   def all() = {
     select(*).execute.pageResult
+  }
+
+  def names:PageResult[(Int,String)] = {
+    select(Seq(id,name)).execute.mapColumns(id ~ name)
   }
 
   def getByTags(tag:String) = {
