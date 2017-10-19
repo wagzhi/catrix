@@ -2,7 +2,6 @@ package catrix.model
 
 import java.util.Date
 
-import catrix.model.{RowParser2, Table}
 import catrix.{Connection}
 
 /**
@@ -120,7 +119,9 @@ class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
   val tags = setColumn[String]("tags")
   val deleted = column[Boolean]("deleted").index
   val createdAt = column[Date]("created_at")
+
   override lazy val primaryKey = partitionKeys(id).clusteringKeys(createdAt).orderBy(createdAt Desc)
+
   val parser =
     (id ~ name ~ tags ~ deleted ~ createdAt <> (Model5.tupled, Model5.unapply))
 
@@ -142,6 +143,7 @@ class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
 }
 
 case class Model6(sid:Int,uid:Int,name:String,words:Map[String,Int],deleted:Boolean,createdAt:Date)
+
 class Model6Table(implicit conn:Connection) extends Table[Model6]("model6") {
   val sid = column[Int]("sid")
   val uid = column[Int]("uid")
@@ -176,8 +178,6 @@ class Model6Table(implicit conn:Connection) extends Table[Model6]("model6") {
   def getById(sid: Int,uid:Int) = {
     select(*).filter(this.sid == sid).filter(this.uid == uid).execute.pageResult
   }
-
-
 }
 
 

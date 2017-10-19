@@ -4,7 +4,25 @@ Catrix是一个使用Scala语言封装的的，基于cassandra-driver-core实现
 另外，通过定义Table，你还可以直接通过Table生成对应的建表Cql语句，提升开发效率。
 当然，Cassandra建模和查询非常复杂，在用于真实的产品中，还是需要你对Cassandra数据库和Cql及相关性能优化有深入的了解。
 
-###定义表和访问接口
+#依赖配置
+SBT文件：
+```scala
+scalaVersion := "2.11.8"
+
+libraryDependencies++= Seq(
+    "com.github.wagzhi" %% "catrix" % "0.0.2-SNAPSHOT"
+)
+
+resolvers ++= Seq(
+    "sonatype-oss-snapshot" at "https://oss.sonatype.org/content/repositories/snapshots/",
+    "sonatype-oss-releases" at "https://oss.sonatype.org/content/repositories/"
+)
+```
+
+
+
+
+### 定义表和访问接口
 ```scala
 case class Coffee(name:String, prices:Int)
 class Coffees(implicit conn:Connection) extends Table[Coffee]("coffee") {
