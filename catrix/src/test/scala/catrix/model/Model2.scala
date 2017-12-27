@@ -1,8 +1,8 @@
 package catrix.model
 
-import java.util.Date
+import java.util.{Date, UUID}
 
-import catrix.{Connection}
+import catrix.Connection
 
 /**
   * Created by paul on 2017/9/18.
@@ -44,10 +44,10 @@ class Model2TupleTable(implicit conn:Connection) extends Table[(Int,String)]("mo
   }
 }
 
-case class Model3(id:Int,name:String,tags:Seq[String])
+case class Model3(id:UUID,name:String,tags:Seq[String])
 
 class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
-  val id = column[Int]("id")
+  val id = column[UUID]("id")
   val name = column[String]("name")
   val tags = listColumn[String]("tags").index
   override lazy val primaryKey = partitionKeys(id).clusteringKeys(name).orderBy(name Desc)
@@ -58,15 +58,15 @@ class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
     super.insert(s).execute
   }
 
-  def getById(id: Int) = {
-    select(*).filter(this.id == 1).execute.pageResult
+  def getById(id: UUID) = {
+    select(*).filter(this.id == id).execute.pageResult
   }
 
   def all() = {
     select(*).execute.pageResult
   }
 
-  def names:PageResult[(Int,String)] = {
+  def names:PageResult[(UUID,String)] = {
     select(Seq(id,name)).execute.mapColumns(id ~ name)
   }
 

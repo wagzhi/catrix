@@ -1,9 +1,9 @@
 package catrix
 
-import java.util.Date
+import java.util.{Date, UUID}
 
 import catrix.model.{Table, _}
-import com.datastax.driver.core.{Cluster,SimpleStatement, SocketOptions}
+import com.datastax.driver.core.{Cluster, SimpleStatement, SocketOptions}
 import org.scalatest.{Matchers, Outcome}
 object ConnectManager{
   private var tableCreated = false
@@ -134,9 +134,9 @@ class Model2Test extends ModelTest[Model2]{
 
 class Model3Test extends ModelTest[Model3]{
   override val samples: Seq[Model3] = Seq(
-    Model3(1,"张三",Seq[String]("男人","NB")),
-    Model3(2,"李四",Seq[String]("男人","SB")),
-    Model3(3,"王五",Seq[String]())
+    Model3(UUID.randomUUID(),"张三",Seq[String]("男人","NB")),
+    Model3(UUID.randomUUID(),"李四",Seq[String]("男人","SB")),
+    Model3(UUID.randomUUID(),"王五",Seq[String]())
   )
   override def table(implicit conn:Connection) = new Model3Table()
   "model2" should "getall" in{
