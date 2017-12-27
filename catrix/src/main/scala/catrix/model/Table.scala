@@ -102,6 +102,10 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
     Query(tableName,QueryAction.select,columns,Seq())
   }
 
+  def select(columnTuple: ColumnTuple) ={
+    Query(tableName,QueryAction.select,columnTuple.*,Seq())
+  }
+
   implicit class ResultSetWrap(val rs:ResultSet){
     def mapResult:ModelResultSet[T]={
       val pageRows = this.pageRows
@@ -115,6 +119,14 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
       PageResult(rows,pageRows._2)
     }
 
+    def mapColumns(columnTuple: ColumnTuple) ={
+      val pageRows = this.pageRows
+      val rows = pageRows._1.map{
+        row:Row=>
+          columnTuple.tupleParser.parse(row)
+      }
+      PageResult(rows,pageRows._2)
+    }
 
     def pageRows:(Seq[Row],String)={
       val pagingState = rs.getExecutionInfo.getPagingState

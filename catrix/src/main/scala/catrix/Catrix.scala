@@ -13,7 +13,6 @@ object Catrix{
     Connection(cluster ,keyspace)
   }
 
-
   def connect(cluster:Cluster,keyspace:String) ={
     Connection(cluster,keyspace)
   }
@@ -23,7 +22,6 @@ case class Connection(val cluster: Cluster, keyspace:String){
   private val logger = LoggerFactory.getLogger(getClass)
 
   lazy val session = cluster.connect(keyspace)
-
 
   def close ={
     session.close()
@@ -53,10 +51,8 @@ case class Connection(val cluster: Cluster, keyspace:String){
       case e:ExecuteException=>
         throw e
       case t:Throwable=>
-        throw PrepareStatementException(s"Prepare statement faild: $query",t)
+        throw PrepareStatementException(s"Prepare statement failed: $query",t)
     }
-
-
   }
 
   def withSession[T](f:Session=>T):T ={

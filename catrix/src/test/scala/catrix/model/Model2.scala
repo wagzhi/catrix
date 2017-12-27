@@ -2,7 +2,6 @@ package catrix.model
 
 import java.util.Date
 
-import catrix.model.{RowParser2, Table}
 import catrix.{Connection}
 
 /**
@@ -35,6 +34,16 @@ class Model2Table(implicit conn:Connection) extends Table[Model2]("model2") {
 }
 
 
+class Model2TupleTable(implicit conn:Connection) extends Table[(Int,String)]("model2"){
+  val id = column[Int]("id")
+  val name = column[String]("name").index
+  override val parser: RowParser[(Int, String)] = (id ~ name).tupleParser
+
+  def fistPage() ={
+    select(*).execute.pageResult
+  }
+}
+
 case class Model3(id:Int,name:String,tags:Seq[String])
 
 class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
@@ -55,6 +64,10 @@ class Model3Table(implicit conn:Connection) extends Table[Model3]("model3") {
 
   def all() = {
     select(*).execute.pageResult
+  }
+
+  def names:PageResult[(Int,String)] = {
+    select(Seq(id,name)).execute.mapColumns(id ~ name)
   }
 
   def getByTags(tag:String) = {
@@ -106,7 +119,9 @@ class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
   val tags = setColumn[String]("tags")
   val deleted = column[Boolean]("deleted").index
   val createdAt = column[Date]("created_at")
+
   override lazy val primaryKey = partitionKeys(id).clusteringKeys(createdAt).orderBy(createdAt Desc)
+
   val parser =
     (id ~ name ~ tags ~ deleted ~ createdAt <> (Model5.tupled, Model5.unapply))
 
@@ -128,6 +143,7 @@ class Model5Table(implicit conn:Connection) extends Table[Model5]("model5") {
 }
 
 case class Model6(sid:Int,uid:Int,name:String,words:Map[String,Int],deleted:Boolean,createdAt:Date)
+
 class Model6Table(implicit conn:Connection) extends Table[Model6]("model6") {
   val sid = column[Int]("sid")
   val uid = column[Int]("uid")
@@ -162,8 +178,6 @@ class Model6Table(implicit conn:Connection) extends Table[Model6]("model6") {
   def getById(sid: Int,uid:Int) = {
     select(*).filter(this.sid == sid).filter(this.uid == uid).execute.pageResult
   }
-
-
 }
 
 

@@ -119,6 +119,17 @@ class Model2Test extends ModelTest[Model2]{
       val models = table.getByIds(1,2).results
       models shouldBe Seq(samples(0),samples(1))
   }
+  it should "test tuple table" in{
+    f=>
+      implicit val conn = f.conn
+      val table = f.table.asInstanceOf[Model2Table]
+      samples.map(table.add)
+      val tupleTable = new Model2TupleTable
+      val models = tupleTable.fistPage().results
+      models shouldBe samples.map(Model2.unapply(_).get)
+
+
+  }
 }
 
 class Model3Test extends ModelTest[Model3]{
@@ -141,6 +152,16 @@ class Model3Test extends ModelTest[Model3]{
       samples.map(table.add)
       val models = table.getByTags("男人").results
       models shouldBe Seq(samples(0),samples(1))
+  }
+  it should "get some columns" in{
+    f=>
+      val table = f.table.asInstanceOf[Model3Table]
+      samples.map(table.add)
+      val names = table.names
+      names.results shouldBe samples.map{
+        m=>
+          (m.id,m.name)
+      }
   }
 }
 
