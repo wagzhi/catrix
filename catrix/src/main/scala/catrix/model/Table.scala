@@ -33,8 +33,6 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
         val orders = orderBy.map(_.toCql).mkString(", ")
         s" WITH CLUSTERING ORDER BY ($orders)"
       }
-
-
     }
   }
 
@@ -75,15 +73,12 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
     s"drop table if exists $tableName"
   }
 
-
   def truncateCql = {
     s"truncate table $tableName"
   }
 
   def * = parser.columns.productIterator.map(_.asInstanceOf[Column[_]]).toSeq
 
-//  def enumColumn[T <: Enumeration#Value](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): EnumerationColumn[T] =
-//    EnumerationColumn[T](columnName,DataType.cint())
 
   def column[T](columnName:String)(implicit typeTag:ru.TypeTag[T],classTag:ClassTag[T]): DefaultColumn[T] =
         DefaultColumn[T](columnName)
@@ -106,7 +101,6 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
   def select(columns:Seq[Column[_]]) ={
     Query(tableName,QueryAction.select,columns,Seq())
   }
-
 
   implicit class ResultSetWrap(val rs:ResultSet){
     def mapResult:ModelResultSet[T]={

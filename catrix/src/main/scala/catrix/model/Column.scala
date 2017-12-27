@@ -1,7 +1,7 @@
 package catrix.model
 
 import java.nio.ByteBuffer
-import java.util.Date
+import java.util.{Date, UUID}
 
 import catrix.exception.ExecuteException
 import catrix.query._
@@ -302,7 +302,8 @@ object Column{
     ru.typeOf[Boolean]->DataType.cboolean(),
     ru.typeOf[Array[Byte]]->DataType.blob(),
     ru.typeOf[java.nio.ByteBuffer]->DataType.blob(),
-    ru.typeOf[Short] -> DataType.smallint()
+    ru.typeOf[Short] -> DataType.smallint(),
+    ru.typeOf[UUID] -> DataType.uuid()
   )
 
   lazy val m = ru.runtimeMirror(getClass.getClassLoader)

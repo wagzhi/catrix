@@ -9,7 +9,7 @@ object ConnectManager{
   private var tableCreated = false
 
   def  conn:Connection = this.synchronized{
-    val cluster = Cluster.builder().addContactPoint("172.16.102.238")
+    val cluster = Cluster.builder().addContactPoint("127.0.0.1")
       .withSocketOptions(new SocketOptions().setConnectTimeoutMillis(5000).setReadTimeoutMillis(20000))
       .build()
     implicit val conn = Catrix.connect(cluster, "catrix")
