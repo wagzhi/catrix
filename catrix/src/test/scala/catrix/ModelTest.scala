@@ -103,7 +103,10 @@ class Model2Test extends ModelTest[Model2]{
       val table = f.table.asInstanceOf[Model2Table]
       samples.map(table.add)
       val models = table.all().results
-      models shouldBe samples
+      models.foreach{
+        m=>
+          samples should contain(m)
+      }
   }
   it should "get by name" in{
     f=>
@@ -116,7 +119,7 @@ class Model2Test extends ModelTest[Model2]{
     f=>
       val table = f.table.asInstanceOf[Model2Table]
       samples.map(table.add)
-      val models = table.getByIds(1,2).results
+      val models = table.getByIds(samples(0).id,samples(1).id).results
       models shouldBe Seq(samples(0),samples(1))
   }
   it should "test tuple table" in{
@@ -154,10 +157,11 @@ class Model3Test extends ModelTest[Model3]{
       val table = f.table.asInstanceOf[Model3Table]
       samples.map(table.add)
       val models = table.getByTags("男人").results
-      models should have size(2)
-
       models should contain(samples(0))
       models should contain(samples(1))
+      //models shouldBe Seq(samples(0),samples(1))
+      models should have size(2)
+
   }
   it should "get some columns" in{
     f=>
