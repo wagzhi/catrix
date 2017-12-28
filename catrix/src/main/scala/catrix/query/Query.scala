@@ -1,10 +1,15 @@
 package catrix.query
 
+
 import catrix.exception.ExecuteException
 import catrix.model.{Column, ColumnValue}
-import com.datastax.driver.core.{BoundStatement, PagingState}
+import com.datastax.driver.core._
 import org.slf4j.LoggerFactory
 import catrix.Connection
+import com.google.common.util.concurrent.{FutureCallback, Futures}
+import top.wagzhi.catrix.query.Result
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
   * Created by paul on 2017/7/31.
@@ -29,33 +34,13 @@ case class Query(
 
   def allowFiltering(allowFiltering:Boolean) = this.copy(isAllowFiltering=allowFiltering)
 
-  def queryValues= filters.flatMap(_.values)
+  lazy val queryValues= filters.flatMap(_.values)
 
-  def execute(implicit conn:Connection)=conn.withPreparedStatement(queryString) {
+
+  def execute(implicit conn:Connection):ResultSet=conn.withPreparedStatement(queryString) {
     (stmt, session) =>
-      val bindValues = queryAction match {
-        case QueryAction.select=>{
-          this.queryValues.asInstanceOf[Seq[Object]]
-        }
-        case QueryAction.insert=>{
-          values.asInstanceOf[Seq[Object]]
-        }
-        case QueryAction.update=>{
-          values.asInstanceOf[Seq[Object]] ++: this.queryValues
-        }
-        case QueryAction.delete=>{
-          this.queryValues
-        }
-        case _=>{
-          throw new IllegalArgumentException("Unsupported query action: "+this.queryAction)
-        }
-      }
+      val bstmt = this.getBoundStatement(stmt,session)
       try{
-        val bstmt = new BoundStatement(stmt).bind(bindValues.asInstanceOf[Seq[Object]]: _*)
-        bstmt.setFetchSize(page.pageSize)
-        if (page.pagingState.length > 0) {
-          bstmt.setPagingState(PagingState.fromString(page.pagingState))
-        }
         session.execute(bstmt)
       }catch{
         case t:Throwable=>{
@@ -63,6 +48,67 @@ case class Query(
             throw new ExecuteException(s"Execute cql failed: $queryString,\n with values: ($valueList)",t)
         }
       }
+  }
+
+
+  def executeAsync(implicit conn:Connection,ctx:ExecutionContext):Future[ResultSet]=conn.withPreparedStatement(queryString) {
+    (stmt, session) =>
+      val bstmt = this.getBoundStatement(stmt,session)
+      try{
+        val fr = session.executeAsync(bstmt)
+        val p = Promise[ResultSet]
+        Futures.addCallback(fr,new FutureCallback[ResultSet] {
+          override def onFailure(t: Throwable) = {
+            p.failure(t)
+          }
+          override def onSuccess(result: ResultSet) = {
+            p.success(result)
+          }
+        })
+        p.future
+      }catch{
+        case t:Throwable=>{
+          val valueList = bindValues.map(_.toString).mkString(", ")
+          throw new ExecuteException(s"Execute cql failed: $queryString,\n with values: ($valueList)",t)
+        }
+      }
+  }
+
+  private def getBoundStatement(stmt:PreparedStatement,session:Session) = {
+    try{
+      val bstmt = new BoundStatement(stmt).bind(bindValues.asInstanceOf[Seq[Object]]: _*)
+      bstmt.setFetchSize(page.pageSize)
+      if (page.pagingState.length > 0) {
+        bstmt.setPagingState(PagingState.fromString(page.pagingState))
+      }
+      bstmt
+    }catch{
+      case t:Throwable=>{
+        val valueList = bindValues.map(_.toString).mkString(", ")
+        throw new ExecuteException(s"Execute cql failed: $queryString,\n with values: ($valueList)",t)
+      }
+    }
+  }
+
+  lazy val bindValues = {
+    val bindValues = queryAction match {
+      case QueryAction.select => {
+        this.queryValues.asInstanceOf[Seq[Object]]
+      }
+      case QueryAction.insert => {
+        values.asInstanceOf[Seq[Object]]
+      }
+      case QueryAction.update => {
+        values.asInstanceOf[Seq[Object]] ++: this.queryValues
+      }
+      case QueryAction.delete => {
+        this.queryValues
+      }
+      case _ => {
+        throw new IllegalArgumentException("Unsupported query action: " + this.queryAction)
+      }
+    }
+    bindValues
   }
 
   def queryString:String = {
@@ -105,7 +151,6 @@ case class Query(
         throw new IllegalArgumentException("Unsupported QueryAction!")
       }
     }
-
   }
 }
 
