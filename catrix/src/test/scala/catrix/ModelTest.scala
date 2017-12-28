@@ -142,14 +142,14 @@ class Model3Test extends ModelTest[Model3]{
     Model3(UUID.randomUUID(),"王五",Seq[String]())
   )
   override def table(implicit conn:Connection) = new Model3Table()
-  "model2" should "getall" in{
+  "model3" should "getall" in{
     f=>
       val table = f.table.asInstanceOf[Model3Table]
       samples.map(table.add)
       val models = table.all().results
-      models.foreach{
-        m=>
-          samples should contain(m)
+      samples.foreach{
+        sample=>
+          models should contain(sample)
       }
   }
   it should  "select by contains" in{
@@ -160,18 +160,20 @@ class Model3Test extends ModelTest[Model3]{
       models should contain(samples(0))
       models should contain(samples(1))
       //models shouldBe Seq(samples(0),samples(1))
+      models should have size(2)
+
   }
   it should "get some columns" in{
     f=>
       val table = f.table.asInstanceOf[Model3Table]
       samples.map(table.add)
-      val names = table.names
+      val names = table.names.results
       samples.map{
         m=>
           (m.id,m.name)
       }.foreach{
-        v=>
-          names.results should contain(v)
+        s=>
+          names should contain(s)
       }
   }
 }
