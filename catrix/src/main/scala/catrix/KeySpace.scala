@@ -1,7 +1,7 @@
 package catrix
 
 import catrix.model.Table
-import com.datastax.driver.core.SimpleStatement
+import com.datastax.driver.core.{Cluster,SimpleStatement}
 import org.slf4j.LoggerFactory
 
 import scala.reflect.runtime.{universe => ru}
@@ -10,8 +10,15 @@ import scala.reflect.runtime.{universe => ru}
   * @author paul <wagzhi@gmail.com>
   * @since 2017/12/27 下午1:43
   */
-class Database(val conn:Connection) {
+abstract class Keyspace(val contactPoint:String,
+val keyspace:String) {
+
   val logger = LoggerFactory.getLogger(getClass)
+  lazy val cluster = Cluster.builder().addContactPoint(contactPoint).build()
+
+  lazy implicit val conn = {
+    Connection(cluster,keyspace)
+  }
   lazy val tables = {
     val m = ru.runtimeMirror(getClass.getClassLoader)
     val clazz = m.classSymbol(this.getClass)
@@ -25,6 +32,14 @@ class Database(val conn:Connection) {
         mm.instance.asInstanceOf[Table[_]]
     }
   }
+
+  def createKeyspace = {
+    val sess = cluster.connect()
+    val cql = s"create keyspace if not exists $keyspace with replication={ 'class' : 'SimpleStrategy', 'replication_factor' : 1 };"
+    sess.execute(new SimpleStatement(cql))
+    sess.close()
+  }
+
   def dropTables ={
     tables.foreach{
       table=>
