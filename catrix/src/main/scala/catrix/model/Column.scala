@@ -21,7 +21,7 @@ case class ListColumn[T](override val columnName:String,
   extends Column[Seq[T]](columnName = columnName,columnType = columnType,isIndex = isIndex){
   override def apply(row: Row): Seq[T] = {
     val clazz = Column.getRuntimeClass(typeTag.tpe)
-    row.getList(this.columnName,clazz).toIndexedSeq.map(_.asInstanceOf[T]).toSeq
+    row.getList(this.columnName,clazz).toIndexedSeq.map(_.asInstanceOf[T]).toList
   }
 
   def contains(t:T)={

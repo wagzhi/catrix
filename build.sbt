@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
   organization := "com.github.wagzhi",
   version := "0.0.2-SNAPSHOT",
-  scalaVersion := "2.11.8" ,
+  scalaVersion := "2.12.4" ,
   publishMavenStyle := true,
   useGpg := true,
   publishTo := {
@@ -42,7 +42,7 @@ lazy val catrix = (project in file("catrix")).
     name := "catrix",
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
-      "org.scala-lang" % "scala-reflect" % "2.11.8",
+      "org.scala-lang" % "scala-reflect" % "2.12.4",
       "com.typesafe.akka" %% "akka-http-core" % "10.0.0" withSources(),
       "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.0" withSources(),
       "org.scalatest" %% "scalatest" % "3.0.1" % "test",
