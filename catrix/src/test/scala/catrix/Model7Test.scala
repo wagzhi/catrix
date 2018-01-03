@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.util.Date
 
 import catrix.model.{Model7, Model7Table}
-
+import scala.collection.JavaConverters._
 /**
   * Created by paul on 2017/9/21.
   */
@@ -26,6 +26,18 @@ class Model7Test extends ModelTest[Model7] {
       samples.map(table.add)
       val models = table.all.results
       models shouldBe samples
+  }
+  "model7" should "delete" in {
+    f =>
+      val table = f.table.asInstanceOf[Model7Table]
+      samples.map(table.add)
+      val models = table.all.results
+      models shouldBe samples
+      val result = table.delete(1,2)
+      result.getColumnDefinitions.asScala.map(println)
+      val models2 = table.all.results
+      models2 should  have length 3
+      models2 shouldBe Seq(models(0),models(2),models(3))
   }
 
 }

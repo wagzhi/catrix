@@ -106,6 +106,10 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
     Query(tableName,QueryAction.select,columnTuple.*,Seq())
   }
 
+  def delete = {
+    Query(tableName,QueryAction.delete,Seq[Column[_]](),Seq())
+  }
+
   implicit class ResultSetWrap(val rs:ResultSet){
     def mapResult:ModelResultSet[T]={
       val pageRows = this.pageRows

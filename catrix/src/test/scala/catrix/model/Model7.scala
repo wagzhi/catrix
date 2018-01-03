@@ -25,6 +25,10 @@ class Model7Table(implicit conn:Connection) extends Table[Model7]("model7") {
     super.insert(s).execute
   }
 
+  def delete(sid:Int,uid:Int) ={
+    super.delete.filter(this.uid == uid).filter(this.sid == sid).execute
+  }
+
   def all() = {
     select(*).execute.pageResult
   }
