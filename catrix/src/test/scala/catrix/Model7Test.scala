@@ -39,6 +39,22 @@ class Model7Test extends ModelTest[Model7] {
       models2 should  have length 3
       models2 shouldBe Seq(models(0),models(2),models(3))
   }
+  "model7" should "update" in {
+    f =>
+      val table = f.table.asInstanceOf[Model7Table]
+      samples.map(table.add)
+      val models = table.all.results
+      models shouldBe samples
+      table.updateNameAndStatus(1,2,"某某人",true)
+      val models2 = table.all.results
+      models2 should  have length 4
+      val m2 = models2.filter{
+        m=>
+          m.sid == 1 && m.uid ==2
+      }.head
+      m2.name shouldBe "某某人"
+      m2.deleted shouldBe true
+  }
 
 }
 

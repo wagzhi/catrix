@@ -98,6 +98,12 @@ abstract class Table[T](tableName:String)(implicit val conn:Connection, val mTyp
     Query(tableName,QueryAction.insert,columns,values)
   }
 
+  def update(setValues :ColumnValue[_] *) ={
+    val columns = setValues.map(_.column)
+    val values = setValues.map(_.valueToCassandra)
+    Query(tableName,QueryAction.update,columns,values)
+  }
+
   def select(columns:Seq[Column[_]]) ={
     Query(tableName,QueryAction.select,columns,Seq())
   }
